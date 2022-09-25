@@ -1,33 +1,17 @@
 #include "edflib.h"
 #include "read_signal_file.h"
 
-
-#define SMP_FREQ  (2048)
-
-#ifndef M_PI
-#define M_PI (3.14159265358979323846264338327)
-#endif
-
-
-
+#define SMP_FREQ   (250) // hardcoded for Motol BrainLab signals
 
 inline int write_edf_file(SignalFile *signal, QFileInfo file2write) //is that inline a hack - TO DO?
 {
-    int i, j,
-            hdl,
-            buf2[SMP_FREQ],
-            chns;
-
-    double buf[SMP_FREQ],
-            q;
-
-    chns = 2;
+    int hdl;
 
     const char* recorderName;
 
     qDebug() << QString::fromLocal8Bit(signal->measurement.name);
 
-    hdl = edfopen_file_writeonly(file2write.absoluteFilePath().toLocal8Bit(), EDFLIB_FILETYPE_EDFPLUS, chns);
+    hdl = edfopen_file_writeonly(file2write.absoluteFilePath().toLocal8Bit(), EDFLIB_FILETYPE_EDFPLUS, signal->recorder_info.numberOfChannelsUsed);
 
     if(hdl<0)
     {
@@ -36,7 +20,7 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write) //is that in
         return(1);
     }
 
-    // ======== WRITING HEADER INFO ========
+    // ======== SETTING HEADER INFO ========
 
     if(edf_set_patientname(hdl, signal->measurement.name)){
         printf("error: edf_set_patientname()\n");
@@ -75,7 +59,7 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write) //is that in
    */
 
 
-    int edf_set_birthdate(int handle, int birthdate_year, int birthdate_month, int birthdate_day); // birthday not used in Motol?
+    //int edf_set_birthdate(int handle, int birthdate_year, int birthdate_month, int birthdate_day); // birthday not used in Motol?
     /* Sets the birthdate.
    * year: 1800 - 3000, month: 1 - 12, day: 1 - 31
    * This function is optional
@@ -123,151 +107,112 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write) //is that in
         return(1);
     }
 
+    // ======== SETTING CHANNEL PROPERTIES ========
+
+    for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){
+
+        Channel *recinf = &signal->recorder_info.channels[ch_index];
+
+        std::string chName = recinf->signal_type + "-" + recinf->channel_desc;
+        //qDebug() << QString::fromStdString(chName);
+
+        // TO DO - nice format of channel label
+
+        if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate)) // TO DO - replace by SMP_FREQ?
+        {
+            printf("error: edf_set_samplefrequency() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        if(edf_set_physical_maximum(hdl, ch_index, 3277))
+        {
+            printf("error: edf_set_physical_maximum() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        if(edf_set_physical_minimum(hdl, ch_index, -3277))
+        {
+            printf("error: edf_set_physical_minimum() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        if(edf_set_digital_maximum(hdl, ch_index, 32767))
+        {
+            printf("error: edf_set_digital_maximum() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        if(edf_set_digital_minimum(hdl, ch_index, -32767))
+        {
+            printf("error: edf_set_digital_minimum() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        if(edf_set_label(hdl, ch_index, chName.c_str()))
+        {
+            printf("error: edf_set_label() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        if(edf_set_physical_dimension(hdl, ch_index, recinf->unit.c_str()))
+        {
+            printf("error: edf_set_physical_dimension() in channel %d \n", ch_index);
+
+            return(1);
+        }
+
+        // not used: edf_set_prefilter, edf_set_transducer
+        // temp_filterStringHeader = 'HP ' + str(sf.recorder_info.highFilter[recinf.high_filter_index]) + ' ' + 'LP ' + str(sf.recorder_info.lowFilter[recinf.low_filter_index])
+
+    }
+
     // ======== WRITING SAMPLES ========
 
-    for(i=0; i<chns; i++)
-    {
-        if(edf_set_samplefrequency(hdl, i, SMP_FREQ))
-        {
-            printf("error: edf_set_samplefrequency()\n");
+    // calculate number of blocks, one block length = samplefrequency
+    //qDebug() << "length of signal" << signal->signal_data[1].size();
 
-            return(1);
+    //long long nBlocks = (signal->signal_data[1].size() - std::count(signal->signal_data[1].begin(), signal->signal_data[1].end(), 0))/SMP_FREQ;//number of non-zero samples/sampling frequency
+    //qDebug() << "lengthOfFile" << nBlocks;
+
+    int nBlocks = signal->signal_data[0].size()/SMP_FREQ;
+    double buf[SMP_FREQ];
+
+    for(int block_index = 0; block_index < nBlocks; block_index++){
+        double iBeg = block_index*SMP_FREQ;
+
+        for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){
+
+            Channel *recinf = &signal->recorder_info.channels[ch_index];
+
+            for(int buf_index = 0; buf_index < recinf->sampling_rate; buf_index++){
+                buf[buf_index] = signal->signal_data[ch_index][iBeg+buf_index]* 100; //* chFactor - why?
+            }
+
+            if(edfwrite_physical_samples(hdl, buf))
+            {
+                printf("error: edfwrite_physical_samples() block %d, channel %d\n",block_index,ch_index);
+
+                return(1);
+            }
         }
+
     }
 
-    for(i=0; i<chns; i++)
-    {
-        if(edf_set_physical_maximum(hdl, i, 400))
-        {
-            printf("error: edf_set_physical_maximum()\n");
-
-            return(1);
-        }
-    }
-
-    for(i=0; i<chns; i++)
-    {
-        if(edf_set_digital_maximum(hdl, i, 32767))
-        {
-            printf("error: edf_set_digital_maximum()\n");
-
-            return(1);
-        }
-    }
-
-    for(i=0; i<chns; i++)
-    {
-        if(edf_set_digital_minimum(hdl, i, -32768))
-        {
-            printf("error: edf_set_digital_minimum()\n");
-
-            return(1);
-        }
-    }
-
-    for(i=0; i<chns; i++)
-    {
-        if(edf_set_physical_minimum(hdl, i, -400))
-        {
-            printf("error: edf_set_physical_minimum()\n");
-
-            return(1);
-        }
-    }
-
-    if(edf_set_label(hdl, 0, "sine"))
-    {
-        printf("error: edf_set_label()\n");
-
-        return(1);
-    }
-
-    if(edf_set_label(hdl, 1, "ramp"))
-    {
-        printf("error: edf_set_label()\n");
-
-        return(1);
-    }
-
-    for(i=0; i<chns; i++)
-    {
-        if(edf_set_physical_dimension(hdl, i, "mV"))
-        {
-            printf("error: edf_set_physical_dimension()\n");
-
-            return(1);
-        }
-    }
-
-    for(j=0; j<10; j++)
-    {
-        for(i=0; i<SMP_FREQ; i++)
-        {
-            q = M_PI * 2.0;
-            q /= SMP_FREQ;
-            q *= i;
-            q = sin(q);
-            q *= 400;
-            buf[i] = q;
-        }
-
-        if(edfwrite_physical_samples(hdl, buf))
-        {
-            printf("error: edfwrite_physical_samples()\n");
-
-            return(1);
-        }
-
-        for(i=0; i<SMP_FREQ; i++)
-        {
-            buf[i] = -400 + (i * 2.9296875);
-        }
-
-        if(edfwrite_physical_samples(hdl, buf))
-        {
-            printf("error: edfwrite_physical_samples()\n");
-
-            return(1);
-        }
-    }
-
-    for(j=0; j<10; j++)
-    {
-        for(i=0; i<SMP_FREQ; i++)
-        {
-            q = M_PI * 2.0;
-            q /= SMP_FREQ;
-            q *= i;
-            q = sin(q);
-            q *= 32767;
-            buf2[i] = q;
-        }
-
-        if(edfwrite_digital_samples(hdl, buf2))
-        {
-            printf("error: edfwrite_digital_samples()\n");
-
-            return(1);
-        }
-
-        for(i=0; i<SMP_FREQ; i++)
-        {
-            buf2[i] = -32768 + (i * 81);
-        }
-
-        if(edfwrite_digital_samples(hdl, buf2))
-        {
-            printf("error: edfwrite_digital_samples()\n");
-
-            return(1);
-        }
-    }
+    // ======== WRITING ANNOTATIONS ========
 
     edfwrite_annotation_latin1(hdl, 0LL, -1LL, "Recording starts");
 
     edfwrite_annotation_latin1(hdl, 200000LL, -1LL, "Recording ends");
 
     edfclose_file(hdl);
+
+    qDebug() << "finished";
 
     return(0);
 }
