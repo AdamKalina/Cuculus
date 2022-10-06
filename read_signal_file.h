@@ -50,6 +50,12 @@ struct Event
     unsigned int end_time = time + duration_in_ms;
 };
 
+struct Note{
+    char desc[256];
+    int page;
+    int time; // maybe?
+};
+
 struct EventDesc
 {
     int DT_MEASURE = 0;
@@ -185,6 +191,7 @@ struct SignalFile
     RecorderMontageInfo recorder_info;
     std::vector<Event> events;
     std::vector<EventDesc> events_desc;
+    std::vector<Note> notes;
     int store_events;
     std::vector<std::vector<double>> signal_data;
     std::vector<SignalPage> signal_pages;

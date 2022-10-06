@@ -177,6 +177,7 @@ static int edflib_is_onset_number(char *);
 static long long edflib_get_long_time(char *);
 static int edflib_write_edf_header(struct edfhdrblock *);
 static void edflib_latin1_to_ascii(char *, int);
+static void edflib_latin2_to_ascii(char *, int);
 static void edflib_latin12utf8(char *, int);
 static void edflib_remove_padding_trailing_spaces(char *);
 static int edflib_atoi_nonlocalized(const char *);
@@ -3408,6 +3409,34 @@ static void edflib_latin1_to_ascii(char *str, int len)
   }
 }
 
+static void edflib_latin2_to_ascii(char *str, int len)
+{
+  /* ISO 8859-2 (but I cared only for usable letters, first half is the same as in latin1) */
+
+  int i, value;
+
+  const char conv_table[]=".E.,F\".++^.S<E.Z..`\'\"\".--~.s>e.zY.i....|....<...-....\'u.....>...?RAAAALCCCEEEEIIDDNNOOOOxRUUUUYTsraaaalccceeeeiiddnnoooo:ruuuuyt.";
+
+  for(i=0; i<len; i++)
+  {
+    value = *((unsigned char *)(str + i));
+
+    if((value>31)&&(value<127))
+    {
+      continue;
+    }
+
+    if(value < 32)
+    {
+      str[i] = '.';
+
+      continue;
+    }
+
+    str[i] = conv_table[value - 127];
+  }
+}
+
 
 static void edflib_latin12utf8(char *latin1_str, int len)
 {
@@ -4714,7 +4743,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       rest -= len;
     }
     edflib_strlcpy(str, hdr->plus_patientcode, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     for(i=0; i<len; i++)
     {
@@ -4799,7 +4828,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       rest -= len;
     }
     edflib_strlcpy(str, hdr->plus_patient_name, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     for(i=0; i<len; i++)
     {
@@ -4834,7 +4863,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       len = rest;
     }
     edflib_strlcpy(str, hdr->plus_patient_additional, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     p += fprintf(file, "%s", str);
   }
@@ -4897,7 +4926,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       rest -= len;
     }
     edflib_strlcpy(str, hdr->plus_admincode, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     for(i=0; i<len; i++)
     {
@@ -4935,7 +4964,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       rest -= len;
     }
     edflib_strlcpy(str, hdr->plus_technician, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     for(i=0; i<len; i++)
     {
@@ -4973,7 +5002,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       rest -= len;
     }
     edflib_strlcpy(str, hdr->plus_equipment, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     for(i=0; i<len; i++)
     {
@@ -5006,7 +5035,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
       len = rest;
     }
     edflib_strlcpy(str, hdr->plus_recording_additional, 128);
-    edflib_latin1_to_ascii(str, len);
+    edflib_latin2_to_ascii(str, len);
     str[len] = 0;
     p += fprintf(file, "%s", str);
   }
@@ -5056,7 +5085,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
   for(i=0; i<edfsignals; i++)
   {
     len = strlen(hdr->edfparam[i].label);
-    edflib_latin1_to_ascii(hdr->edfparam[i].label, len);
+    edflib_latin2_to_ascii(hdr->edfparam[i].label, len);
     for(j=0; j<len; j++)
     {
       fputc(hdr->edfparam[i].label[j], file);
@@ -5080,7 +5109,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
   for(i=0; i<edfsignals; i++)
   {
     len = strlen(hdr->edfparam[i].transducer);
-    edflib_latin1_to_ascii(hdr->edfparam[i].transducer, len);
+    edflib_latin2_to_ascii(hdr->edfparam[i].transducer, len);
     for(j=0; j<len; j++)
     {
       fputc(hdr->edfparam[i].transducer[j], file);
@@ -5100,7 +5129,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
   for(i=0; i<edfsignals; i++)
   {
     len = strlen(hdr->edfparam[i].physdimension);
-    edflib_latin1_to_ascii(hdr->edfparam[i].physdimension, len);
+    edflib_latin2_to_ascii(hdr->edfparam[i].physdimension, len);
     for(j=0; j<len; j++)
     {
       fputc(hdr->edfparam[i].physdimension[j], file);
@@ -5183,7 +5212,7 @@ static int edflib_write_edf_header(struct edfhdrblock *hdr)
   for(i=0; i<edfsignals; i++)
   {
     len = strlen(hdr->edfparam[i].prefilter);
-    edflib_latin1_to_ascii(hdr->edfparam[i].prefilter, len);
+    edflib_latin2_to_ascii(hdr->edfparam[i].prefilter, len);
     for(j=0; j<len; j++)
     {
       fputc(hdr->edfparam[i].prefilter[j], file);

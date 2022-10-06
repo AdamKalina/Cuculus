@@ -286,7 +286,7 @@ std::vector<EventDesc> read_event_descs(std::fstream &file)
     //cout << "top of read_event_desc "; whereAmI(file);
     std::vector<EventDesc> types;
     short tcount;
-    short h;
+    short h = 0;
     char dss[20];
     char lss[6];
 
@@ -311,6 +311,26 @@ std::vector<EventDesc> read_event_descs(std::fstream &file)
 
     return types;
 }
+
+std::vector<Note>  read_notes(std::fstream &file, long offset, long size){
+
+    file.seekg(offset);
+    std::vector<Note> notes;
+    unsigned int I;
+    short tcount; // = no of notes, size of one note = 264 bytes, 256 bytes = description, 2x4 bytes (int)
+    file.read(reinterpret_cast<char *>(&tcount), sizeof(tcount));
+    qDebug() << "tcount" << tcount;
+
+    for (int i = 1; i <= tcount; i++){
+        Note note;
+        file.read(reinterpret_cast<char *>(&note.desc), sizeof(note.desc));
+        file.read(reinterpret_cast<char *>(&I), sizeof(I));
+        note.page = I >> 16;
+        file.read(reinterpret_cast<char *>(&note.time), sizeof(note.time));
+        notes.push_back(note);
+    }
+    return notes;
+};
 
 std::vector<Event> get_selected_events_4_types(std::vector<Event> events, int type)
 {
@@ -363,7 +383,7 @@ Spages read_signal_pages(std::fstream &file, bool read_signal_data, long file_si
     //cout << "Channels used: " << channels_used << endl;
 
     int header_length = 6;
-    short h;
+    short h = 0;
     int num_pages = int((file_size - offset) / page_size);
     //std::cout << "save_buffer_size " << channels[1].save_buffer_size << endl;
     //std::vector<std::vector<double>> esignals(channels_used, std::vector<double>(channels[1].save_buffer_size * num_pages, 0)); // this is not allocating
@@ -491,11 +511,14 @@ SignalFile read_signal_file(QFileInfo fileInfo){
     //cout << "Block size: " << data_table.events_info.size << endl;
     signal.events = read_events(file, signal.data_table.events_info.offset, signal.data_table.events_info.size, 2048);
 
+
     //Event desc
     // get to 61776 by reading additional 27 bytes for every missing event (maximum is 2048) in read_events
     signal.events_desc = read_event_descs(file);
 
     //whereAmI(file);
+    signal.notes = read_notes(file, signal.data_table.notes_info.offset, signal.data_table.notes_info.size);
+
 
     std::map<int, std::string> EventDict;
 

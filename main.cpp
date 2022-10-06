@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QDebug>
+#include <QString>
 #include <QCommandLineParser>
 #include <QElapsedTimer>
 #include "write_edf_file.cpp"
@@ -16,7 +17,7 @@ int main(int argc, char *argv[])
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-                "                                                :.\n"
+"                                                :.\n"
 "                                              ~?7.\n"
 "                                           .~J5?:\n"
 "                 .::::.                  .~J55?.\n"
@@ -37,7 +38,8 @@ int main(int argc, char *argv[])
 "Cuculus is .SIG (Brainlab) to .EDF converter based of EDFlib by Teuniz and sigtoedf by Frederik-D-Weber.\nBashed together by Adam Kalina 2022, Motol University Hospital");
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addOption(QCommandLineOption("a", QCoreApplication::translate("main", "Anonymize output")));
+    QCommandLineOption anonymizeOption("a", QCoreApplication::translate("main", "Anonymize output"));
+    parser.addOption(anonymizeOption);
     parser.addPositionalArgument("input", QCoreApplication::translate("main", "Source *.SIG file"));
     parser.addPositionalArgument("output", QCoreApplication::translate("main", "Target *.EDF file - optional"));
 
@@ -46,6 +48,14 @@ int main(int argc, char *argv[])
 
     const QStringList args = parser.positionalArguments();
     // source is args.at(0), destination is args.at(1)
+
+    bool anonymize = parser.isSet(anonymizeOption); // disable adding patients info in the header
+
+    //qDebug() << "anonymize is " << anonymize;
+
+    if(args.size()==0){
+        parser.showHelp();
+    }
 
     if(args.size() == 2){
         qDebug() << args.at(0);
@@ -76,7 +86,7 @@ int main(int argc, char *argv[])
         // If everything is oky, then read the SIG file
         if(outputOky && inputOky){
             SignalFile signal = read_signal_file(infoSig); //TO DO - check if the file is oky etc.
-            write_edf_file(&signal,infoEdf);
+            write_edf_file(&signal,infoEdf, anonymize);
         }
     }
 
@@ -88,14 +98,12 @@ int main(int argc, char *argv[])
             qDebug() << "Only path to input was provided, exporting to the same folder";
             SignalFile signal = read_signal_file(infoSig); //TO DO - check if the file is oky etc.
             QFileInfo infoEdf(infoSig.path() + "/" + infoSig.completeBaseName() + ".EDF");
-            write_edf_file(&signal,infoEdf);
+            write_edf_file(&signal,infoEdf,anonymize);
         }
         else{
             qDebug() << "The input file does not exist or it is not a .SIG file - exiting";
             return 1;
         }
-
     }
-
-    return a.exec();
+    //return a.exec();
 }
