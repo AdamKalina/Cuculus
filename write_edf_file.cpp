@@ -3,9 +3,10 @@
 
 #define SMP_FREQ   (250) // hardcoded for Motol BrainLab signals
 
-inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize) //is that inline a hack - TO DO?
+inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten) //is that inline a hack - TO DO?
 {
     int hdl;
+    std::string chName;
 
     const char* recorderName;
 
@@ -141,10 +142,17 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
 
         Channel *recinf = &signal->recorder_info.channels[ch_index];
 
-        std::string chName = recinf->signal_type + "-" + recinf->channel_desc;
-        //qDebug() << QString::fromStdString(chName);
+        QString chLabel = QString::fromStdString(recinf->channel_desc);
+        chLabel.replace("/","-");
 
-        // TO DO - nice format of channel label
+        if(chLabel == "In1a-In1b"){ // I guess this is recorder specific
+            chName = "ECG";
+        }
+        else{
+            chName = recinf->signal_type + " " + chLabel.toStdString();
+        }
+
+        //qDebug() << QString::fromStdString(chName);
 
         if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate)) // TO DO - replace by SMP_FREQ?
         {
@@ -235,6 +243,7 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
     // ======== WRITING ANNOTATIONS ========
 
     qDebug() << "events size" << signal->events.size();
+    QString label;
 
     for(unsigned int j = 0; j < signal->events.size(); j++){
         // TO DO - other types of events
@@ -244,8 +253,12 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
             int ev_subtype = signal->events.at(j).sub_type;
             ev_subtype -= 100; // turns 102 into 2 and so on, corresponds to events_desc
             int onset_in_s = (signal->events.at(j).page - 1) * signal->recorder_info.epochLengthInSamples / float(signal->recorder_info.highestRate) + signal->events.at(j).page_time;
-            QString label = QString::fromLocal8Bit(signal->events_desc.at(ev_subtype).desc.data());
-            // TO DO - option to write just shortened labels of events, e.g. OO, ZO, HVn, HVu
+
+            if(shorten){ // option to write just shortened labels of events, e.g. OO, ZO, HVn, HVu
+                label = QString::fromLocal8Bit(signal->events_desc.at(ev_subtype).label.data());
+            }else{
+                label = QString::fromLocal8Bit(signal->events_desc.at(ev_subtype).desc.data());
+            }
 
             edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
             //int edfwrite_annotation_utf8(int handle, long long onset, long long duration, const char *description);
@@ -258,43 +271,24 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
              * This function is optional and can be called only after opening a file in writemode
              * and before closing the file
              */
-//            qDebug() << "event no: " << j;
-//            //qDebug() << "info: "<<signal->events.at(j).info; // always one
-//            //qDebug() << "channels: " << signal->events.at(j).channels;
-//            qDebug() << "page: "<<signal->events.at(j).page << ", page_time: "<<signal->events.at(j).page_time;
-//            qDebug() << "time: "<<signal->events.at(j).time;
-//            qDebug() << "duration: " << signal->events.at(j).duration << ", duration in ms: " <<signal->events.at(j).duration_in_ms;
-//            qDebug() << "end time: " <<signal->events.at(j).end_time;
-//            qDebug() << "ev type: " << signal->events.at(j).ev_type << ", sub type: "<<signal->events.at(j).sub_type;
-//            qDebug() << "----";
+            //            qDebug() << "event no: " << j;
+            //            //qDebug() << "info: "<<signal->events.at(j).info; // always one
+            //            //qDebug() << "channels: " << signal->events.at(j).channels;
+            //            qDebug() << "page: "<<signal->events.at(j).page << ", page_time: "<<signal->events.at(j).page_time;
+            //            qDebug() << "time: "<<signal->events.at(j).time;
+            //            qDebug() << "duration: " << signal->events.at(j).duration << ", duration in ms: " <<signal->events.at(j).duration_in_ms;
+            //            qDebug() << "end time: " <<signal->events.at(j).end_time;
+            //            qDebug() << "ev type: " << signal->events.at(j).ev_type << ", sub type: "<<signal->events.at(j).sub_type;
+            //            qDebug() << "----";
         }
 
     }
 
-//    qDebug() << "events desc size" << signal->events_desc.size(); // predefinovane eventy
-
-//    for(unsigned int k = 0; k < signal->events_desc.size(); k++){
-//        qDebug() << k;
-//        qDebug() << signal->events_desc.at(k).desc.data();
-//        qDebug() << signal->events_desc.at(k).label.data();
-//        qDebug() << signal->events_desc.at(k).value;
-//        qDebug() << "---";
-
-//    }
-
-    for(int i = 0; i < signal->events.size(); i++){
-        //        st = Event.ST_DICT.get((evt.ev_type, evt.sub_type))
-        //                eventName = Event.ET_DICT.get(evt.ev_type) + '_' + (st if st is not None else evt.sub_type)
-        //                second = (evt.page - 1) * sf.recorder_info.epochLengthInSamples / float(sf.recorder_info.highestRate) + evt.page_time
-        //                duration = -1
-        //                edfWriteAnnotation(edfWriter, second, duration, eventName.encode("utf-8"))
+    for(unsigned int k = 0; k < signal->notes.size(); k++){
+                int onset_in_s = (signal->notes.at(k).page - 1) * signal->recorder_info.epochLengthInSamples / float(signal->recorder_info.highestRate);
+                QString label = QString::fromLocal8Bit(signal->notes[k].desc); // while truncating it replaces last character with <?> - sometimes?
+                edfwrite_annotation_utf8(hdl, onset_in_s*10000, -1, label.toUtf8());
     }
-
-//    for(int i = 0; i < signal->notes.size(); i++){
-//        qDebug() << "note no: " << i+1;
-//        qDebug() << signal->notes[i].desc;
-//        qDebug() << signal->notes[i].page;
-//    }
 
     edfclose_file(hdl);
 

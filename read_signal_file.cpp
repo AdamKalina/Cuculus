@@ -42,7 +42,7 @@ QDateTime decode_date_time(long date, long time)
     QDateTime startDateTime = QDateTime(startDate,startTime).toLocalTime();
 
     // this is kinda hack - old BrainLab does not account for time transition to daylight saving time, I need to correct it manually
-    // works fine on my computer
+    // works fine on my computer, but it actually didnt need this correction in Motol XP computers
     //if(startDateTime.isDaylightTime()){
     //qDebug() << "before " << startDateTime;
     //  startDateTime = startDateTime.addSecs(3600);
@@ -319,7 +319,7 @@ std::vector<Note>  read_notes(std::fstream &file, long offset, long size){
     unsigned int I;
     short tcount; // = no of notes, size of one note = 264 bytes, 256 bytes = description, 2x4 bytes (int)
     file.read(reinterpret_cast<char *>(&tcount), sizeof(tcount));
-    qDebug() << "tcount" << tcount;
+    //qDebug() << "tcount" << tcount;
 
     for (int i = 1; i <= tcount; i++){
         Note note;
@@ -557,5 +557,6 @@ SignalFile read_signal_file(QFileInfo fileInfo){
 
     file.close();
 
+    signal.check = true;
     return signal;
 }

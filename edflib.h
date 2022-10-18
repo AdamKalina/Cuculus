@@ -689,6 +689,8 @@ int edf_set_subsecond_starttime(int handle, int subsecond);
  * in other words, leave the last 3 digits at zero
  */
 
+//static void edflib_latin2_to_ascii(char *, int);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

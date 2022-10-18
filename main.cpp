@@ -5,8 +5,7 @@
 #include <QElapsedTimer>
 #include "write_edf_file.cpp"
 
-bool inputOky;
-bool outputOky;
+QString EdfPath;
 
 int main(int argc, char *argv[])
 {
@@ -17,7 +16,7 @@ int main(int argc, char *argv[])
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-"                                                :.\n"
+                "                                                :.\n"
 "                                              ~?7.\n"
 "                                           .~J5?:\n"
 "                 .::::.                  .~J55?.\n"
@@ -40,6 +39,8 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
     QCommandLineOption anonymizeOption("a", QCoreApplication::translate("main", "Anonymize output"));
     parser.addOption(anonymizeOption);
+    QCommandLineOption shortenOption("s", QCoreApplication::translate("main", "Shorten events labels"));
+    parser.addOption(shortenOption);
     parser.addPositionalArgument("input", QCoreApplication::translate("main", "Source *.SIG file"));
     parser.addPositionalArgument("output", QCoreApplication::translate("main", "Target *.EDF file - optional"));
 
@@ -50,60 +51,53 @@ int main(int argc, char *argv[])
     // source is args.at(0), destination is args.at(1)
 
     bool anonymize = parser.isSet(anonymizeOption); // disable adding patients info in the header
+    bool shorten = parser.isSet(shortenOption); // use shortened labels for events, e.g. ZO/OO
 
-    //qDebug() << "anonymize is " << anonymize;
+    //    qDebug() << "anonymize is " << anonymize;
+    //    qDebug() << "shorten is " << shorten;
+    //    qDebug() << args;
 
     if(args.size()==0){
         parser.showHelp();
     }
-
-    if(args.size() == 2){
-        qDebug() << args.at(0);
-        qDebug() << args.at(1);
-
-        //must be SIG file
+    else{
         QFileInfo infoSig(args.at(0));
-
-        if(infoSig.completeSuffix() == "SIG" && infoSig.exists()){
-            inputOky = true;
+        if(args.size() == 2){ // two arguments provided
+            EdfPath = args.at(1);
+        }else{ // only one (or more than two) arguments provided
+            EdfPath = infoSig.path() + "/" + infoSig.completeBaseName() + ".EDF";
+            qDebug() << "Exporting to the same folder";
+            std::cout << "Exporting to the same folder" << std::endl;
         }
-        else{
-            qDebug() << "The input file does not exist or it is not a .SIG file - exiting";
-            return 1;
-        }
+        QFileInfo infoEdf(EdfPath);
 
-        //must be EDF file
-        QFileInfo infoEdf(args.at(1));
-
-
-        if(infoEdf.completeSuffix() == "EDF"){
-            outputOky = true;
-        }else{
+        if(infoEdf.completeSuffix() != "EDF"){ //must be EDF file
             qDebug() << "The path to output does not end with .EDF - exiting";
+            std::cout << "The path to output does not end with .EDF - exiting" << std::endl;
             return 1;
         }
 
-        // If everything is oky, then read the SIG file
-        if(outputOky && inputOky){
-            SignalFile signal = read_signal_file(infoSig); //TO DO - check if the file is oky etc.
-            write_edf_file(&signal,infoEdf, anonymize);
-        }
-    }
-
-    if(args.size() == 1){ // when only one argument is provided
-        //must be SIG file
-        QFileInfo infoSig(args.at(0));
-
-        if(infoSig.completeSuffix() == "SIG" && infoSig.exists()){
-            qDebug() << "Only path to input was provided, exporting to the same folder";
-            SignalFile signal = read_signal_file(infoSig); //TO DO - check if the file is oky etc.
-            QFileInfo infoEdf(infoSig.path() + "/" + infoSig.completeBaseName() + ".EDF");
-            write_edf_file(&signal,infoEdf,anonymize);
+        if(infoSig.completeSuffix().toLower() == "sig" && infoSig.exists()){ // check if input is .sig or .SIG file
+            SignalFile signal = read_signal_file(infoSig);
+            if(signal.check){ // check if the file is oky etc
+                write_edf_file(&signal,infoEdf, anonymize, shorten);
+                std::cout << "Finished successfully!" << std::endl;
+                return 0;
+            }
+            else{
+                qDebug() << "Error reading .SIG file";
+                std::cout << "Error reading .SIG file" << std::endl;
+                return 1;
+            }
         }
         else{
             qDebug() << "The input file does not exist or it is not a .SIG file - exiting";
+            std::cout << "The input file does not exist or it is not a .SIG file - exiting" << std::endl;
             return 1;
         }
+
+
     }
+
     //return a.exec();
 }

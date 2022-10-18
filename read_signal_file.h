@@ -195,6 +195,7 @@ struct SignalFile
     int store_events;
     std::vector<std::vector<double>> signal_data;
     std::vector<SignalPage> signal_pages;
+    bool check = false;
 };
 
 QDateTime decode_date_time(long date, long time);
