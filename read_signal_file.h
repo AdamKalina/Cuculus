@@ -21,6 +21,7 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <QDebug>
+//#include <QMap>
 
 // structs definitions
 

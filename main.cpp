@@ -41,6 +41,8 @@ int main(int argc, char *argv[])
     parser.addOption(anonymizeOption);
     QCommandLineOption shortenOption("s", QCoreApplication::translate("main", "Shorten events labels"));
     parser.addOption(shortenOption);
+    QCommandLineOption systemEventsOption("y", QCoreApplication::translate("main", "Export recorder system events in annotations"));
+    parser.addOption(systemEventsOption);
     parser.addPositionalArgument("input", QCoreApplication::translate("main", "Source *.SIG file"));
     parser.addPositionalArgument("output", QCoreApplication::translate("main", "Target *.EDF file - optional"));
 
@@ -52,6 +54,7 @@ int main(int argc, char *argv[])
 
     bool anonymize = parser.isSet(anonymizeOption); // disable adding patients info in the header
     bool shorten = parser.isSet(shortenOption); // use shortened labels for events, e.g. ZO/OO
+    bool exportSystemEvents = parser.isSet(systemEventsOption);
 
     //    qDebug() << "anonymize is " << anonymize;
     //    qDebug() << "shorten is " << shorten;
@@ -80,7 +83,7 @@ int main(int argc, char *argv[])
         if(infoSig.completeSuffix().toLower() == "sig" && infoSig.exists()){ // check if input is .sig or .SIG file
             SignalFile signal = read_signal_file(infoSig);
             if(signal.check){ // check if the file is oky etc
-                write_edf_file(&signal,infoEdf, anonymize, shorten);
+                write_edf_file(&signal,infoEdf, anonymize, shorten,exportSystemEvents);
                 std::cout << "Finished successfully!" << std::endl;
                 return 0;
             }

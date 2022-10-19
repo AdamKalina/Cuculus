@@ -60,9 +60,7 @@ std::vector<T> readChannel(T tch, std::fstream &file, int nch)
     {
         file.read(reinterpret_cast<char *>(&tch), sizeof(tch));
         x.push_back(tch);
-        //cout << x[i] << " ";
     }
-    //cout <<endl;
     return x;
 }
 
@@ -237,12 +235,8 @@ std::vector<Event> read_events(std::fstream &file, long offset, long size, long 
     unsigned char B;
     unsigned int I;
     file.read(reinterpret_cast<char *>(&tcount), sizeof(tcount));
-    //cout << tcount << " tcount" << endl;
-    long currsize = sizeof(tcount) + sizeof(h) + sizeof(B) + 6 * sizeof(I);
-    //cout << "currsize: " << currsize << endl;
-    if (currsize > size)
-    {
-    }
+    long eventSize = sizeof(h) + sizeof(B) + 6 * sizeof(I); //should be 27
+
     for (int i = 0; i < nevents; i++)
     {
         if (i < tcount)
@@ -250,40 +244,25 @@ std::vector<Event> read_events(std::fstream &file, long offset, long size, long 
             Event event;
             //whereAmI(file);
             file.read(reinterpret_cast<char *>(&event.ev_type), sizeof(event.ev_type));
-            //cout << "event: " << event.desc1;
             file.read(reinterpret_cast<char *>(&event.sub_type), sizeof(event.sub_type));
-            //cout << ", " << event.desc2;
             file.read(reinterpret_cast<char *>(&I), sizeof(I));
             event.page = I >> 16;
             event.page_time = (I & 0x0000ffff) / 1000.0;
-            //cout << event.page << ", " << event.page_time << endl;
             file.read(reinterpret_cast<char *>(&event.time), sizeof(event.time));
-            //cout << ", " << event.ev2;
             file.read(reinterpret_cast<char *>(&event.duration), sizeof(event.duration));
-            //cout << ", " << event.ev3;
             file.read(reinterpret_cast<char *>(&event.duration_in_ms), sizeof(event.duration_in_ms));
-            //cout << ", " << event.ev4;
             file.read(reinterpret_cast<char *>(&event.channels), sizeof(event.channels));
-            //cout << ", " << event.ev5;
             file.read(reinterpret_cast<char *>(&event.info), sizeof(event.info));
-            //cout << ", " << event.ev6;
             events.push_back(event);
-            //cout << endl;
         }
     }
     long current = file.tellg();
-    //cout << current << endl;
-    //cout << "nevents-tcount = " << nevents-tcount << endl;
-    file.seekg(current + (nevents - tcount) * 27);
-    //file.seekg(offset + sizeof(tcount) + nevents*27);
+    file.seekg(current + (nevents - tcount) * eventSize); // needed to past the empty bytes reserved for events to reach event_desc
     return events;
 }
 
 std::vector<EventDesc> read_event_descs(std::fstream &file)
 {
-    //std::cout << "read_event_descs: "; whereAmI(file);
-    // Careful on this - need to count for empty cycles in previous struct - function read_events
-    //cout << "top of read_event_desc "; whereAmI(file);
     std::vector<EventDesc> types;
     short tcount;
     short h = 0;
@@ -301,7 +280,6 @@ std::vector<EventDesc> read_event_descs(std::fstream &file)
     for (int i = 0; i < tcount; i++)
     {
         EventDesc eventdesc;
-        //cout << desc[i] << " " << labels[i] << " " << values[i] << " " << dtypes[i] << endl;
         eventdesc.desc = desc[i];
         eventdesc.label = labels[i];
         eventdesc.d_type = dtypes[i];
@@ -326,27 +304,14 @@ std::vector<Note>  read_notes(std::fstream &file, long offset, long size){
         file.read(reinterpret_cast<char *>(&note.desc), sizeof(note.desc));
         file.read(reinterpret_cast<char *>(&I), sizeof(I));
         note.page = I >> 16;
-        file.read(reinterpret_cast<char *>(&note.time), sizeof(note.time));
+        file.read(reinterpret_cast<char *>(&note.time), sizeof(note.time)); // TO DO - how to turn this into time?
         notes.push_back(note);
     }
     return notes;
 };
 
-std::vector<Event> get_selected_events_4_types(std::vector<Event> events, int type)
-{
-    std::vector<Event> selected;
-
-    for (int i = 0; i < events.size(); i++)
-    {
-        if (events[i].ev_type == type)
-        {
-            selected.push_back(events[i]);
-        }
-    }
-    return selected;
-}
-
 void read_display_montages(std::fstream &file, long offset, long size){
+    // this function is a stub
     file.seekg(offset);
     //std::cout << "display montages start at " << offset<<endl;
     //std::cout << "display montages size: " << size<<endl;
@@ -518,33 +483,6 @@ SignalFile read_signal_file(QFileInfo fileInfo){
 
     //whereAmI(file);
     signal.notes = read_notes(file, signal.data_table.notes_info.offset, signal.data_table.notes_info.size);
-
-
-    std::map<int, std::string> EventDict;
-
-    EventDict[1] = "ET_SAVESKIPEVENT";
-    EventDict[2] = "ET_SYSTEMEVENT";
-    EventDict[3] = "ET_USEREVENT";
-    EventDict[4] = "ET_DIGINPEVENT";
-    EventDict[5] = "ET_RECORDEREVENT";
-    EventDict[6] = "ET_RESPIRATIONEVENTS";
-    EventDict[7] = "ET_SATURATIONEVENTS";
-    EventDict[8] = "ET_ECGEVENTS";
-    EventDict[9] = "ET_EMGEVENTS";
-    EventDict[10] = "ET_EEG_DELTAEVENTS";
-    EventDict[11] = "ET_EEG_SPINDLEEVENTS";
-    EventDict[12] = "ET_EEG_ALPHAEVENTS";
-    EventDict[13] = "ET_EOGEVENTS";
-    EventDict[14] = "ET_EEG_THETAEVENTS";
-    EventDict[15] = "ET_EEG_BETAEVENTS";
-    EventDict[16] = "ET_AROUSALEVENTS";
-    EventDict[17] = "ET_SOUNDEVENTS";
-    EventDict[18] = "ET_BODYPOSITIONEVENTS";
-    EventDict[19] = "ET_CPAPEVENTS";
-
-    std::vector<Event> store_events_list = get_selected_events_4_types(signal.events, 1);
-
-    signal.store_events = store_events_list.size();
 
     // TO DO - read additional montages at position signal.data_table.display_montages_info.offset;
     read_display_montages(file, signal.data_table.display_montages_info.offset, signal.data_table.display_montages_info.size);
