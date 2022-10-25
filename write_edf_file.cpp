@@ -18,34 +18,10 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
 
     // I am putting here only events not related to PSG. And even from those I use only few
 
-    saveSkipEvent_map[0] = "SAVESKIPEVENT";
-
-    //systemEvent_map["A"] = "ST_ANALYSIS";
-    systemEvent_map[77] = "MONTAGE CHANGE";
-    //systemEvent_map["L"] = "ST_DIG_LOW_FILTER_INC";
-    //systemEvent_map["M"] = "ST_DIG_LOW_FILTER_DEF"; // double entry of M?
-    //systemEvent_map["l"] = "ST_DIG_LOW_FILTER_DEC";
-    //systemEvent_map["H"] = "ST_DIG_HIGH_FILTER_INC";
-    //systemEvent_map["I"] = "ST_DIG_HIGH_FILTER_DEF";
-    //systemEvent_map["h"] = "ST_DIG_HIGH_FILTER_DEC";
-    qDebug() << systemEvent_map[11];
-
-
-    //recorderEvent_map["S"] = "ST_SENSITIVITY_INC"
-    //recorderEvent_map["T"] = "ST_SENSITIVITY_DEF"
-    //recorderEvent_map["s"] = "ST_SENSITIVITY_DEC"
-    //recorderEvent_map["L"] = "ST_LOW_FILTER_INC"
-    //recorderEvent_map["M"] = "ST_LOW_FILTER_DEF"
-    //recorderEvent_map["l"] = "ST_LOW_FILTER_DEC"
-    //recorderEvent_map["H"] = "ST_HIGH_FILTER_INC"
-    //recorderEvent_map["I"] = "ST_HIGH_FILTER_DEF"
-    //recorderEvent_map["h"] = "ST_HIGH_FILTER_DEC"
-    recorderEvent_map[86] = "VIDEO ON";
-    recorderEvent_map[118] = "VIDEO OFF";
-    //recorderEvent_map["Z"] = "ST_VIDEO_ON_WHILE_MEASURING"
-    //recorderEvent_map["z"] = "ST_VIDEO_OFF_WHILE_MEASURING"
-    //recorderEvent_map["X"] = "ST_STIMULUS_ON"
-    //recorderEvent_map["x"] = "ST_STIMULUS_OFF"
+    saveSkipEvent_map[0] = "Store event";
+    systemEvent_map[77] = "Montage change";
+    recorderEvent_map[86] = "Start video recording";
+    recorderEvent_map[118] = "Stop video recording";
 
     event_map[1] = saveSkipEvent_map; // ET_SAVESKIPEVENT = whole recording?
     event_map[2] = systemEvent_map;//"ET_SYSTEMEVENT";
@@ -120,7 +96,10 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
             return(1);
         }
 
-        QDateTime startTime =  decode_date_time(signal->measurement.start_date,signal->measurement.start_hour);
+        //QDateTime startTime =  decode_date_time(signal->measurement.start_date,signal->measurement.start_hour); // this is the startdatetime stored in the header - but actually the file starts with the first store event
+
+        QDateTime startTime = decode_date_time(signal->measurement.start_date, signal->signal_pages[0].time);
+
 
         if(edf_set_startdatetime(hdl, startTime.date().year(), startTime.date().month(), startTime.date().day(), startTime.time().hour(), startTime.time().minute(), startTime.time().second())){
             printf("error: edf_set_startdatetime()\n");
@@ -295,9 +274,8 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
      * and before closing the file
      */
 
-    qDebug() << "events size" << signal->events.size();
+    //qDebug() << "events size" << signal->events.size();
     QString label;
-    bool export_system_events = true;
 
     for(unsigned int j = 0; j < signal->events.size(); j++){
 
@@ -321,22 +299,28 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
             if(exportSystemEvents)
             {
 
-                //                qDebug() << "event no: " << j;
-                //                qDebug() << "info: "<<signal->events.at(j).info; // always one
-                //                qDebug() << "channels: " << signal->events.at(j).channels;
-                //                qDebug() << "page: "<<signal->events.at(j).page << ", page_time: "<<signal->events.at(j).page_time;
-                //                qDebug() << "time: "<<signal->events.at(j).time;
-                //                qDebug() << "duration: " << signal->events.at(j).duration << ", duration in ms: " <<signal->events.at(j).duration_in_ms;
-                //                qDebug() << "end time: " <<signal->events.at(j).end_time;
-                //                qDebug() << "ev type: " << signal->events.at(j).ev_type << ", sub type: "<<signal->events.at(j).sub_type;
+                //                                                qDebug() << "event no: " << j;
+                //                                                qDebug() << "info: "<<signal->events.at(j).info; // always one
+                //                                                qDebug() << "channels: " << signal->events.at(j).channels;
+                //                                                qDebug() << "page: "<<signal->events.at(j).page << ", page_time: "<<signal->events.at(j).page_time;
+                //                                                qDebug() << "time: "<<signal->events.at(j).time;
+                //                                                qDebug() << "duration: " << signal->events.at(j).duration << ", duration in ms: " <<signal->events.at(j).duration_in_ms;
+                //                                                qDebug() << "end time: " <<signal->events.at(j).end_time;
+                //                                                qDebug() << "ev type: " << signal->events.at(j).ev_type << ", sub type: "<<signal->events.at(j).sub_type;
 
-                //                char character = char(signal->events.at(j).sub_type); //unsigned char (ASCII value) to char - used in original convertSIGtoEDF.py
-                //                qDebug()<<character;
-                //                qDebug() << "----";
+                //                                                char character = char(signal->events.at(j).sub_type); //unsigned char (ASCII value) to char - used in original convertSIGtoEDF.py
+                //                                                qDebug()<<character;
+                //                                                qDebug() << "----";
                 int onset_in_s = (signal->events.at(j).page - 1) * signal->recorder_info.epochLengthInSamples / float(signal->recorder_info.highestRate) + signal->events.at(j).page_time;
-                //label = event_map[signal->events.at(j).ev_type][signal->events.at(j).sub_type]; // but this not allow for default value
+                //label = event_map[signal->events.at(j).ev_type][signal->events.at(j).sub_type]; // but this not allow using default value
                 label = event_map.value((signal->events.at(j).ev_type)).value(signal->events.at(j).sub_type,"unknown event");
+
+                if(signal->events.at(j).ev_type == 1){ // do not use "Store event" - it colors the whole recording
+                    continue;
+                }
                 edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
+
+
             }
         }
     }
@@ -349,7 +333,7 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
 
     edfclose_file(hdl);
 
-    qDebug() << "finished";
+    //qDebug() << "finished";
 
     return(0);
 }

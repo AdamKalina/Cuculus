@@ -69,13 +69,13 @@ int main(int argc, char *argv[])
             EdfPath = args.at(1);
         }else{ // only one (or more than two) arguments provided
             EdfPath = infoSig.path() + "/" + infoSig.completeBaseName() + ".EDF";
-            qDebug() << "Exporting to the same folder";
+            //qDebug() << "Exporting to the same folder";
             std::cout << "Exporting to the same folder" << std::endl;
         }
         QFileInfo infoEdf(EdfPath);
 
         if(infoEdf.completeSuffix() != "EDF"){ //must be EDF file
-            qDebug() << "The path to output does not end with .EDF - exiting";
+            //qDebug() << "The path to output does not end with .EDF - exiting";
             std::cout << "The path to output does not end with .EDF - exiting" << std::endl;
             return 1;
         }
@@ -88,13 +88,13 @@ int main(int argc, char *argv[])
                 return 0;
             }
             else{
-                qDebug() << "Error reading .SIG file";
+                //qDebug() << "Error reading .SIG file";
                 std::cout << "Error reading .SIG file" << std::endl;
                 return 1;
             }
         }
         else{
-            qDebug() << "The input file does not exist or it is not a .SIG file - exiting";
+            //qDebug() << "The input file does not exist or it is not a .SIG file - exiting";
             std::cout << "The input file does not exist or it is not a .SIG file - exiting" << std::endl;
             return 1;
         }
