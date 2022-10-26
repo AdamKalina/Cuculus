@@ -218,6 +218,8 @@ RecorderMontageInfo read_recorder_info(std::fstream &file, long offset)
         channel.artefact_level = artefact_level[i];
         channel.save_buffer_size = save_buffer_size[i];
         recorder_info.channels.push_back(channel);
+        //qDebug() << "factor: " << channel.cal_factor; //changes signs between 7/2008 and 9/2008
+                    ;
     }
     //cout << "end of read_recorder_info: ";
     //whereAmI(file);
@@ -418,8 +420,9 @@ Spages read_signal_pages(std::fstream &file, bool read_signal_data, long file_si
     {
         for (int i = 0; i < channels_used; i++)
         {
-            double cal_factor = channels[i].cal_factor;
+            double cal_factor = abs(channels[i].cal_factor); // in most of the record the cal_factor is negative and the polarity is inverted in edfbrowser - so I use absolute value
             double cal_offset = channels[i].cal_offset;
+            // transform(v.begin(), v.end(), v.begin(), [k](int &c){ return c*k; });
             std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_factor](double &c) { return c * cal_factor; });
             std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_offset](double &c) { return c + cal_offset; });
         }
