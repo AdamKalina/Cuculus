@@ -1,3 +1,26 @@
+/*
+*****************************************************************************
+*
+* Cuculus is command line application for converting EEG *.SIG files (Schwartzer BrainLab) to *.EDF
+* Copyright (C) 2022  Adam Kalina
+* email: adam.kalina89@gmail.com
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*
+*****************************************************************************
+*/
+
 #include "read_signal_file.h"
 
 // function definitions
@@ -204,9 +227,9 @@ RecorderMontageInfo read_recorder_info(std::fstream &file, long offset)
     {
         Channel channel;
         channel.sampling_rate = sampling_rate[i];
-        channel.signal_type = signal_type[i];
-        channel.signal_sub_type = signal_sub_type[i];
-        channel.channel_desc = channel_desc[i];
+        channel.signal_type = signal_type[i]; // "EEG"
+        channel.signal_sub_type = signal_sub_type[i]; // "---"
+        channel.channel_desc = channel_desc[i]; //"Fp1/G19"
         channel.sensitivity_index = sensitivity_index[i];
         channel.low_filter_index = low_filter_index[i];
         channel.high_filter_index = high_filter_index[i];
@@ -218,11 +241,33 @@ RecorderMontageInfo read_recorder_info(std::fstream &file, long offset)
         channel.artefact_level = artefact_level[i];
         channel.save_buffer_size = save_buffer_size[i];
         recorder_info.channels.push_back(channel);
-        //qDebug() << "factor: " << channel.cal_factor; //changes signs between 7/2008 and 9/2008
-                    ;
+        //qDebug() << "factor: " << channel.cal_factor; //changes signs between 7/2008 and 9/2008 in VEEG files
+        ;
     }
-    //cout << "end of read_recorder_info: ";
-    //whereAmI(file);
+    std::cout << "end of read_recorder_info: ";
+    whereAmI(file);
+
+    // READ THE DISPLAY MONTAGE HERE
+    file.seekg (2, std::ios::cur);
+    char mname[33];
+    char lead[9];
+    file.read(reinterpret_cast<char *>(&mname), sizeof(mname));
+
+    std::cout << mname << std::endl;
+    recorder_info.displayMontage.name = mname;
+    std::cout << recorder_info.montageName << std::endl;
+
+    file.seekg(5868); // is it fixed?
+
+    std::vector<std::string> leads = readChannelChar(lead, file, 24);
+
+    for(int i = 0; i < leads.size(); i++){
+        file.read(reinterpret_cast<char *>(&lead), sizeof(lead));
+        std::cout << leads[i] << std::endl;
+    }
+
+    recorder_info.displayMontage.leads = leads;
+
     return recorder_info;
 }
 
@@ -314,31 +359,47 @@ std::vector<Note>  read_notes(std::fstream &file, long offset, long size){
 
 void read_display_montages(std::fstream &file, long offset, long size){
     // this function is a stub
+
+    std::vector<Montage> montages;
+
     file.seekg(offset);
-    //std::cout << "display montages start at " << offset<<endl;
-    //std::cout << "display montages size: " << size<<endl;
-
-    //std::cout << "beginning read_display_montages: "; whereAmI(file);
-    //nevents = 10240;
+    std::cout << "display montages start at " << offset<<std::endl;
+    std::cout << "display montages size: " << size<<std::endl;
+    std::cout << "beginning read_display_montages: "; whereAmI(file);
     short tcount;
-    file.read(reinterpret_cast<char *>(&tcount), sizeof(tcount)); // some kind of buffer?
+    file.read(reinterpret_cast<char *>(&tcount), sizeof(tcount)); // some kind of buffer? it is not really the number of montages, always 4?
 
-    //cout << "tcount: "<<tcount << endl;
+    //std::cout << "tcount: "<<tcount << std::endl;
     //whereAmI(file);
 
-    char montageName[33];
     char lead[9];
 
-    file.read(reinterpret_cast<char *>(&montageName), sizeof(montageName));
+    // need to parse AVE_DK LONGITUDINAL2,TRAMSVERSAL nebo LONGITUDINAL2 O1,TRANSVERSE 2 O1 nebo LONGITUDINAL2 TRAMSVERSAL2
 
-    //cout << "montage name: " << montageName << endl;
+    std::string mnames = "";
+    char ch;
 
-    file.seekg(1120,std::ios_base::cur);
+
+    while ((ch = file.get()) != '\01'){ // should be the end of montages names
+        //std::cout << ch << std::endl;
+        if (ch == '\0'){ //sometimes there is zero as delimeter, maybe in different profiles?
+            mnames += ",";
+        }
+        mnames += ch;
+    }
+
+
+
+    std::cout << mnames << std::endl;
+    // TO DO - split mnames by "," and get rid of incomplete montages
+    // in loop load leads names construct montage struct
+
+    file.seekg(92529);
     std::vector<std::string> leads = readChannelChar(lead, file, 24);
 
     for(int i = 0; i < leads.size(); i++){
-        //file.read(reinterpret_cast<char *>(&lead), sizeof(lead));
-        //cout << leads[i] << endl;
+        file.read(reinterpret_cast<char *>(&lead), sizeof(lead));
+        std::cout << leads[i] << std::endl;
     }
     //std::cout << endl;
 
@@ -420,7 +481,8 @@ Spages read_signal_pages(std::fstream &file, bool read_signal_data, long file_si
     {
         for (int i = 0; i < channels_used; i++)
         {
-            double cal_factor = abs(channels[i].cal_factor); // in most of the record the cal_factor is negative and the polarity is inverted in edfbrowser - so I use absolute value
+            double cal_factor = -abs(channels[i].cal_factor); // in most of the records the cal_factor is negative and the polarity is inverted in edfbrowser - so I use absolute value
+            // and I use -1* because otherwise the resulting file would have positive polarity upwards (which is actually oky for edfbrowser, but not for other browsers)
             double cal_offset = channels[i].cal_offset;
             // transform(v.begin(), v.end(), v.begin(), [k](int &c){ return c*k; });
             std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_factor](double &c) { return c * cal_factor; });

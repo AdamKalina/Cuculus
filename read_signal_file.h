@@ -149,6 +149,11 @@ struct Channel
     double save_buffer_size;
 };
 
+struct Montage{
+    std::string name;
+    std::vector<std::string> leads;
+};
+
 struct RecorderMontageInfo
 {
     char name[33];
@@ -172,7 +177,7 @@ struct RecorderMontageInfo
     unsigned short highestRate;
     std::vector<Channel> channels;
     int parameter = 0; // from here - not used?
-    std::string displayMontageName = "";
+    Montage displayMontage;
     std::string dispCh;
     std::string dispChScale;
     std::string electrode = "";
@@ -183,6 +188,7 @@ struct RecorderMontageInfo
     int sampleMap;
     std::string dummy = "";
 };
+
 
 struct SignalFile
 {

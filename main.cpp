@@ -1,3 +1,26 @@
+/*
+*****************************************************************************
+*
+* Cuculus is command line application for converting EEG *.SIG files (Schwartzer BrainLab) to *.EDF
+* Copyright (C) 2022  Adam Kalina
+* email: adam.kalina89@gmail.com
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*
+*****************************************************************************
+*/
+
 #include <QCoreApplication>
 #include <QDebug>
 #include <QString>
@@ -12,7 +35,7 @@ int main(int argc, char *argv[])
     setlocale(LC_ALL, "czech");
     QCoreApplication a(argc, argv);
     QCoreApplication::setApplicationName("Cuculus - .SIG to .EDF converter");
-    QCoreApplication::setApplicationVersion("0.2");
+    QCoreApplication::setApplicationVersion("0.3");
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
@@ -34,7 +57,10 @@ int main(int argc, char *argv[])
 "        :::^!?JJ?!~^^~~!!7??7!~~!77!!!!777?????7?JYYJ?777\n"
 "            !!!!!777!!7?JJ??7!!~~~~~~!!77????7!~^:....\n"
 "\n"
-"Cuculus is .SIG (Brainlab) to .EDF converter based of EDFlib by Teuniz and sigtoedf by Frederik-D-Weber.\nBashed together by Adam Kalina 2022, Motol University Hospital");
+"Cuculus is .SIG (Brainlab) to .EDF converter based of EDFlib by Teuniz and sigtoedf by Frederik-D-Weber.\n"
+"Cuculus  Copyright (C) 2022  Adam Kalina\n"
+"This program comes with ABSOLUTELY NO WARRANTY\n"
+"This is free software, and you are welcome to redistribute it\n");
     parser.addHelpOption();
     parser.addVersionOption();
     QCommandLineOption anonymizeOption("a", QCoreApplication::translate("main", "Anonymize output"));
