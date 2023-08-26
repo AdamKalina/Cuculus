@@ -24,9 +24,6 @@
 #include "edflib.h"
 #include "read_signal_file.h"
 
-#define SMP_FREQ   (250) // hardcoded for Motol BrainLab signals
-//#define SMP_FREQ   (1000) // hardcoded for Motol BrainLab signals - JIP
-
 inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents) //is that inline a hack - TO DO?
 {
     int hdl;
@@ -265,10 +262,15 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
     //long long nBlocks = (signal->signal_data[1].size() - std::count(signal->signal_data[1].begin(), signal->signal_data[1].end(), 0))/SMP_FREQ;//number of non-zero samples/sampling frequency
     //qDebug() << "lengthOfFile" << nBlocks;
 
-    //int SMP_FREQ = int(signal->recorder_info.channels[0].sampling_rate); // I hope that sampling rate is same in all signals... SMP_FREQ used to be hardcoded to 250 Hz but it changes ()
+    int SMP_FREQ = int(signal->recorder_info.channels[0].sampling_rate); // I hope that sampling rate is same in all signals... SMP_FREQ used to be hardcoded to 250 Hz but it changes ()
 
     int nBlocks = signal->signal_data[0].size()/SMP_FREQ;
-    double buf[SMP_FREQ];
+    //double buf[SMP_FREQ];
+
+    //std::vector<double> buf;
+    //buf.reserve(SMP_FREQ);
+
+    std::vector<double> buf (SMP_FREQ, 0);
 
     for(int block_index = 0; block_index < nBlocks; block_index++){ // iterate over blocks
         double iBeg = block_index*SMP_FREQ;
@@ -280,10 +282,11 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
             //qDebug() << recinf->sampling_rate;
 
             for(int buf_index = 0; buf_index < recinf->sampling_rate; buf_index++){
+                //qDebug() << "buf index: " << buf_index << "| ch_index: "<< ch_index << "| iBeg: " << iBeg;
                 buf[buf_index] = signal->signal_data[ch_index][iBeg+buf_index]* 100; //* chFactor - why?
             }
 
-            if(edfwrite_physical_samples(hdl, buf))
+            if(edfwrite_physical_samples(hdl, buf.data()))
             {
                 printf("error: edfwrite_physical_samples() block %d, channel %d\n",block_index,ch_index);
 
