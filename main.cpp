@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
 *
-* Cuculus is command line application for converting EEG *.SIG files (Schwartzer BrainLab) to *.EDF
+* Cuculus is command line application for converting EEG *.SIG files (Schwarzer BrainLab) to *.EDF
 * Copyright (C) 2022  Adam Kalina
 * email: adam.kalina89@gmail.com
 *

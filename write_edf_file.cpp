@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
 *
-* Cuculus is command line application for converting EEG *.SIG files (Schwartzer BrainLab) to *.EDF
+* Cuculus is command line application for converting EEG *.SIG files (Schwarzer BrainLab) to *.EDF
 * Copyright (C) 2022  Adam Kalina
 * email: adam.kalina89@gmail.com
 *
@@ -25,6 +25,7 @@
 #include "read_signal_file.h"
 
 #define SMP_FREQ   (250) // hardcoded for Motol BrainLab signals
+//#define SMP_FREQ   (1000) // hardcoded for Motol BrainLab signals - JIP
 
 inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents) //is that inline a hack - TO DO?
 {
@@ -187,7 +188,10 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
 
         Channel *recinf = &signal->recorder_info.channels[ch_index];
 
-        QString chLabel = QString::fromStdString(recinf->channel_desc);
+        //QString chLabel = QString::fromStdString(recinf->channel_desc);
+
+        QString chLabel = QString::fromStdString(signal->recorder_info.displayMontage.leads[ch_index]); //use display montage labels
+
         chLabel.replace("/","-");
 
         if(chLabel == "In1a-In1b"){ // I guess this is recorder specific
@@ -197,9 +201,9 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
             chName = recinf->signal_type + " " + chLabel.toStdString();
         }
 
-        //qDebug() << QString::fromStdString(chName);
+        qDebug() << QString::fromStdString(chName);
 
-        if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate)) // TO DO - replace by SMP_FREQ?
+        if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate))
         {
             printf("error: edf_set_samplefrequency() in channel %d \n", ch_index);
 
@@ -261,15 +265,19 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
     //long long nBlocks = (signal->signal_data[1].size() - std::count(signal->signal_data[1].begin(), signal->signal_data[1].end(), 0))/SMP_FREQ;//number of non-zero samples/sampling frequency
     //qDebug() << "lengthOfFile" << nBlocks;
 
+    //int SMP_FREQ = int(signal->recorder_info.channels[0].sampling_rate); // I hope that sampling rate is same in all signals... SMP_FREQ used to be hardcoded to 250 Hz but it changes ()
+
     int nBlocks = signal->signal_data[0].size()/SMP_FREQ;
     double buf[SMP_FREQ];
 
-    for(int block_index = 0; block_index < nBlocks; block_index++){
+    for(int block_index = 0; block_index < nBlocks; block_index++){ // iterate over blocks
         double iBeg = block_index*SMP_FREQ;
 
-        for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){
+        for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){ // iterate over channels
 
             Channel *recinf = &signal->recorder_info.channels[ch_index];
+
+            //qDebug() << recinf->sampling_rate;
 
             for(int buf_index = 0; buf_index < recinf->sampling_rate; buf_index++){
                 buf[buf_index] = signal->signal_data[ch_index][iBeg+buf_index]* 100; //* chFactor - why?

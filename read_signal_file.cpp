@@ -1,7 +1,7 @@
 /*
 *****************************************************************************
 *
-* Cuculus is command line application for converting EEG *.SIG files (Schwartzer BrainLab) to *.EDF
+* Cuculus is command line application for converting EEG *.SIG files (Schwarzer BrainLab) to *.EDF
 * Copyright (C) 2022  Adam Kalina
 * email: adam.kalina89@gmail.com
 *
@@ -227,6 +227,7 @@ RecorderMontageInfo read_recorder_info(std::fstream &file, long offset)
     {
         Channel channel;
         channel.sampling_rate = sampling_rate[i];
+        std::cout << channel.sampling_rate << std::endl;
         channel.signal_type = signal_type[i]; // "EEG"
         channel.signal_sub_type = signal_sub_type[i]; // "---"
         channel.channel_desc = channel_desc[i]; //"Fp1/G19"
@@ -550,7 +551,7 @@ SignalFile read_signal_file(QFileInfo fileInfo){
     signal.notes = read_notes(file, signal.data_table.notes_info.offset, signal.data_table.notes_info.size);
 
     // TO DO - read additional montages at position signal.data_table.display_montages_info.offset;
-    read_display_montages(file, signal.data_table.display_montages_info.offset, signal.data_table.display_montages_info.size);
+    //read_display_montages(file, signal.data_table.display_montages_info.offset, signal.data_table.display_montages_info.size);
 
     //spages
     // TO DO - construct time vector from signal_pages
