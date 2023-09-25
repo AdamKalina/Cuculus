@@ -198,7 +198,7 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
             chName = recinf->signal_type + " " + chLabel.toStdString();
         }
 
-        qDebug() << QString::fromStdString(chName);
+        //qDebug() << QString::fromStdString(chName);
 
         if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate))
         {

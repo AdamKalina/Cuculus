@@ -6,6 +6,7 @@
 #include <fstream>
 #include <cstring>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <map>
 #include <locale>
@@ -17,6 +18,7 @@
 #include <cstdint>
 #include <functional>
 #include <algorithm>
+#include<tuple>
 //#include <QString>
 #include <QFileInfo>
 #include <QDateTime>
@@ -200,8 +202,9 @@ struct SignalFile
     std::vector<EventDesc> events_desc;
     std::vector<Note> notes;
     int store_events;
-    std::vector<std::vector<double>> signal_data;
+    std::vector<std::vector<double>> signal_data; //actual EEG data
     std::vector<SignalPage> signal_pages;
+    std::vector<Montage> montages; //additional montages
     bool check = false;
 };
 
