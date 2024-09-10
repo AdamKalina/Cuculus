@@ -22,20 +22,12 @@
 */
 
 #include "edflib.h"
-#include "read_signal_file.h"
+#include "write_edf_file.h"
 
-inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents) //is that inline a hack - TO DO?
+int write_edf::write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents) //is that inline a hack - TO DO?
 {
-    int hdl;
-    std::string chName;
 
-    const char* recorderName;
-
-    QMap<int, QMap<int, QString>> event_map;
-    QMap<int, QString> systemEvent_map;
-    QMap<int, QString> recorderEvent_map;
-    QMap<int, QString> saveSkipEvent_map;
-
+    // ======== SETTING UP ANNOTATIONS DICTIONARIES ========
 
     // I am putting here only events not related to PSG. And even from those I use only few
 
@@ -50,22 +42,55 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
     //event_map[4] = "ET_DIGINPEVENT";
     event_map[5] = recorderEvent_map;//"ET_RECORDEREVENT";
 
-    qDebug() << QString::fromLocal8Bit(signal->measurement.name);
+    //qDebug() << QString::fromLocal8Bit(signal->measurement.name);
+
+    // ======== OPEN THE FILE FOR READING ========
 
     hdl = edfopen_file_writeonly(file2write.absoluteFilePath().toLocal8Bit(), EDFLIB_FILETYPE_EDFPLUS, signal->recorder_info.numberOfChannelsUsed);
 
     if(hdl<0)
     {
         printf("error: edfopen_file_writeonly()\n");
-
         return(1);
     }
 
     // ======== SETTING HEADER INFO ========
 
+    if(set_header_info(signal, anonymize, file2write)){
+        printf("error: set_header_info()\n");
+        return(1);
+    }
+
+    // ======== SETTING CHANNEL PROPERTIES ========
+
+    if(set_channel_properties(signal)){
+        printf("error: set_channel_properties\n");
+        return(1);
+    }
+
+    // ======== WRITING SAMPLES ========
+
+    if(set_data(signal)){
+        printf("error: set_data\n");
+        return(1);
+    }
+
+    // ======== WRITING ANNOTATIONS ========
+
+    if(set_annotations(signal, shorten, exportSystemEvents)){
+        printf("error: set_annotations\n");
+        return(1);
+    }
+
+    edfclose_file(hdl);
+
+    //qDebug() << "finished";
+
+    return(0);
+}
+
+int write_edf::set_header_info(SignalFile *signal, bool anonymize, QFileInfo file2write){
     if(!anonymize){
-
-
         if(edf_set_patientname(hdl, signal->measurement.name)){
             printf("error: edf_set_patientname()\n");
 
@@ -118,7 +143,6 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
         }
 
         //QDateTime startTime =  decode_date_time(signal->measurement.start_date,signal->measurement.start_hour); // this is the startdatetime stored in the header - but actually the file starts with the first store event
-
         QDateTime startTime = decode_date_time(signal->measurement.start_date, signal->signal_pages[0].time);
 
 
@@ -178,9 +202,10 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
 
         return(1);
     }
+    return(0);
+}
 
-    // ======== SETTING CHANNEL PROPERTIES ========
-
+int write_edf::set_channel_properties(SignalFile *signal){
     for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){
 
         Channel *recinf = &signal->recorder_info.channels[ch_index];
@@ -188,17 +213,18 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
         //QString chLabel = QString::fromStdString(recinf->channel_desc);
 
         QString chLabel = QString::fromStdString(signal->recorder_info.displayMontage.leads[ch_index]); //use display montage labels
+        qDebug() << chLabel;
 
         chLabel.replace("/","-");
 
-        if(chLabel == "In1a-In1b"){ // I guess this is recorder specific
-            chName = "ECG";
+        if(chLabel == "In1a-In1b" || chLabel == "EKG"){ // I guess this is recorder specific
+            chName = "ECG ECG";
         }
         else{
             chName = recinf->signal_type + " " + chLabel.toStdString();
         }
 
-        //qDebug() << QString::fromStdString(chName);
+        qDebug() << QString::fromStdString(chName);
 
         if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate))
         {
@@ -253,8 +279,10 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
         // temp_filterStringHeader = 'HP ' + str(sf.recorder_info.highFilter[recinf.high_filter_index]) + ' ' + 'LP ' + str(sf.recorder_info.lowFilter[recinf.low_filter_index])
 
     }
+    return(0);
+}
 
-    // ======== WRITING SAMPLES ========
+int write_edf::set_data(SignalFile *signal){
 
     // calculate number of blocks, one block length = samplefrequency
     //qDebug() << "length of signal" << signal->signal_data[1].size();
@@ -262,7 +290,7 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
     //long long nBlocks = (signal->signal_data[1].size() - std::count(signal->signal_data[1].begin(), signal->signal_data[1].end(), 0))/SMP_FREQ;//number of non-zero samples/sampling frequency
     //qDebug() << "lengthOfFile" << nBlocks;
 
-    int SMP_FREQ = int(signal->recorder_info.channels[0].sampling_rate); // I hope that sampling rate is same in all signals... SMP_FREQ used to be hardcoded to 250 Hz but it changes ()
+    int SMP_FREQ = int(signal->recorder_info.channels[0].sampling_rate); // I hope that sampling rate is same in all signals...
 
     int nBlocks = signal->signal_data[0].size()/SMP_FREQ;
     //double buf[SMP_FREQ];
@@ -295,8 +323,10 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
         }
     }
 
-    // ======== WRITING ANNOTATIONS ========
+    return(0);
+}
 
+int write_edf::set_annotations(SignalFile *signal, bool shorten, bool exportSystemEvents){
     //int edfwrite_annotation_utf8(int handle, long long onset, long long duration, const char *description);
     /* writes an annotation/event to the file
      * onset is relative to the start of the file
@@ -314,7 +344,6 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
     for(unsigned int j = 0; j < signal->events.size(); j++){
 
         if(signal->events.at(j).ev_type == 3){
-
 
             int ev_subtype = signal->events.at(j).sub_type;
             ev_subtype -= 100; // turns 102 into 2 and so on, corresponds to events_desc
@@ -353,8 +382,6 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
                     continue;
                 }
                 edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
-
-
             }
         }
     }
@@ -364,10 +391,5 @@ inline int write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymi
         QString label = QString::fromLocal8Bit(signal->notes[k].desc); // while truncating it replaces last character with <?> - sometimes?
         edfwrite_annotation_utf8(hdl, onset_in_s*10000, -1, label.toUtf8());
     }
-
-    edfclose_file(hdl);
-
-    //qDebug() << "finished";
-
     return(0);
 }

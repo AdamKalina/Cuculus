@@ -26,7 +26,7 @@
 #include <QString>
 #include <QCommandLineParser>
 #include <QElapsedTimer>
-#include "write_edf_file.cpp"
+#include "write_edf_file.h"
 
 QString EdfPath;
 
@@ -109,7 +109,13 @@ int main(int argc, char *argv[])
         if(infoSig.completeSuffix().toLower() == "sig" && infoSig.exists()){ // check if input is .sig or .SIG file
             SignalFile signal = read_signal_file(infoSig);
             if(signal.check){ // check if the file is oky etc
-                write_edf_file(&signal,infoEdf, anonymize, shorten,exportSystemEvents);
+                write_edf EdfWriter;
+                if(EdfWriter.write_edf_file(&signal,infoEdf, anonymize, shorten,exportSystemEvents)){
+                    printf("error: EdfWriter.write_edf_file\n");
+                    std::cout << "error: EdfWriter.write_edf_file\n" << std::endl;
+                    return 1;
+                };
+                //write_edf_file(&signal,infoEdf, anonymize, shorten,exportSystemEvents);
                 std::cout << "Finished successfully!" << std::endl;
                 return 0;
             }
