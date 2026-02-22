@@ -39,6 +39,12 @@ struct Spages
     std::vector<SignalPage> pages;
 };
 
+struct Spage
+{
+    std::vector<std::vector<double>> esignals;
+    SignalPage page;
+};
+
 struct Event
 {
     short ev_type;

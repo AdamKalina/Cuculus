@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
             SignalFile signal = read_signal_file(infoSig);
             if(signal.check){ // check if the file is oky etc
                 write_edf EdfWriter;
-                if(EdfWriter.write_edf_file(&signal,infoEdf, anonymize, shorten,exportSystemEvents)){
+                if(EdfWriter.write_edf_file(&signal,infoEdf, anonymize, shorten, exportSystemEvents)){
                     printf("error: EdfWriter.write_edf_file\n");
                     std::cout << "error: EdfWriter.write_edf_file\n" << std::endl;
                     return 1;

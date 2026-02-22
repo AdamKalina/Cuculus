@@ -411,7 +411,7 @@ std::vector<Note>  read_notes(std::fstream &file, long offset, long size){
         notes.push_back(note);
     }
     return notes;
-};
+}
 
 std::vector<Montage> read_display_montages(std::fstream &file, long offset, long size){
 
@@ -538,6 +538,45 @@ Spages read_signal_pages(std::fstream &file, bool read_signal_data, long file_si
     return spages;
 }
 
+Spage read_signal_page(std::fstream &file, long offset, int channels_used, std::vector<Channel> channels)
+{
+    short h = 0;
+    std::vector<std::vector<double>> esignals(channels_used, std::vector<double>()); //originally "signals"
+
+    for(int ch = 0; ch < channels_used; ch++){
+        esignals[ch].reserve(channels[ch].save_buffer_size * 1); // allocate memory for one page
+    }
+
+    SignalPage page;
+    file.seekg(offset);
+
+
+    file.read(reinterpret_cast<char *>(&page.filling), sizeof(page.filling)); // check if not 0?
+    file.read(reinterpret_cast<char *>(&page.time), sizeof(page.time));
+
+
+    for (int i = 0; i < channels_used; i++)
+    {
+        std::vector<short> b = readChannel(h, file, channels[i].save_buffer_size);
+        esignals[i].insert(esignals[i].begin(), b.begin(), b.end());
+    }
+
+    for (int i = 0; i < channels_used; i++)
+    {
+        double cal_factor = -abs(channels[i].cal_factor); // in most of the records the cal_factor is negative and the polarity is inverted in edfbrowser - so I use absolute value
+        // and I use -1* because otherwise the resulting file would have positive polarity upwards (which is actually oky for edfbrowser, but not for other browsers)
+        double cal_offset = channels[i].cal_offset;
+        // transform(v.begin(), v.end(), v.begin(), [k](int &c){ return c*k; });
+        std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_factor](double &c) { return c * cal_factor; });
+        std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_offset](double &c) { return c + cal_offset; });
+    }
+
+    Spage spage;
+    spage.page = page;
+    spage.esignals = esignals;
+    return spage;
+}
+
 SignalFile read_signal_file(QFileInfo fileInfo){
 
     // get file size
@@ -593,7 +632,6 @@ SignalFile read_signal_file(QFileInfo fileInfo){
     //QString tableFile = fileInfo.canonicalPath() + "/" + fileInfo.baseName() + ".TBL";
     //read_additional_events(tableFile); // TO DO - read additional events in tbl file
 
-    // TO DO - construct time vector from signal_pages
     Spages spages = read_signal_pages(file, true, file_size, signal.data_table.signal_info.offset, signal.data_table.signal_info.size, signal.recorder_info.numberOfChannelsUsed, signal.recorder_info.channels);
     signal.signal_pages = spages.pages;
     signal.signal_data = spages.esignals;
