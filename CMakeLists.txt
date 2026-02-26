@@ -28,6 +28,7 @@ add_executable(Cuculus
   read_signal_file.cpp
   edflib.c
   write_edf_file.cpp
+  wrapper.cpp
 )
 target_link_libraries(Cuculus Qt${QT_VERSION_MAJOR}::Core)
 

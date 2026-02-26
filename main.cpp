@@ -26,7 +26,7 @@
 #include <QString>
 #include <QCommandLineParser>
 #include <QElapsedTimer>
-#include "write_edf_file.h"
+#include "wrapper.h"
 
 QString EdfPath;
 
@@ -40,27 +40,27 @@ int main(int argc, char *argv[])
     QCommandLineParser parser;
     parser.setApplicationDescription(
                 "                                                :.\n"
-"                                              ~?7.\n"
-"                                           .~J5?:\n"
-"                 .::::.                  .~J55?.\n"
-"              .~7?77!77?!:              ~J55Y!.\n"
-"          :~!7YJ: .7^  :!?777!~^.     ~J5557.\n"
-"             .^??: .      ..:^!7??7^^J555?:\n"
-"                7Y.              :~7J555!\n"
-"                .Y7     .:.          :!J7:\n"
-"                 :Y!     .:~~~^:....   .~??~.         . :^\n"
-"     :7J?77!^     ^Y7.      .^~!7??????????7~       .7?!!7\n"
-" :7?!^..^7?!^.     .7J!:           ..::..   .^7?7:...^7J?7.\n"
-"   .^!77!~~!7?7!^.   :7JJ7!~^^^^^~~~^:..:~!??7~^~!777!~:.\n"
-"       ^~~~!!7?JYYJ7!^::^!7????7!~~^~!?JYYJ?77!!~^.  :.\n"
-"       ^77!~^::.:^^~!!!7?JYYYYYYYJ?7!~~^::.YYJ?7!.^!7?7^..\n"
-"        :::^!?JJ?!~^^~~!!7??7!~~!77!!!!777?????7?JYYJ?777\n"
-"            !!!!!777!!7?JJ??7!!~~~~~~!!77????7!~^:....\n"
-"\n"
-"Cuculus is .SIG (Brainlab) to .EDF converter based of EDFlib by Teuniz and sigtoedf by Frederik-D-Weber.\n"
-"Cuculus  Copyright (C) 2022  Adam Kalina\n"
-"This program comes with ABSOLUTELY NO WARRANTY\n"
-"This is free software, and you are welcome to redistribute it\n");
+                "                                              ~?7.\n"
+                "                                           .~J5?:\n"
+                "                 .::::.                  .~J55?.\n"
+                "              .~7?77!77?!:              ~J55Y!.\n"
+                "          :~!7YJ: .7^  :!?777!~^.     ~J5557.\n"
+                "             .^??: .      ..:^!7??7^^J555?:\n"
+                "                7Y.              :~7J555!\n"
+                "                .Y7     .:.          :!J7:\n"
+                "                 :Y!     .:~~~^:....   .~??~.         . :^\n"
+                "     :7J?77!^     ^Y7.      .^~!7??????????7~       .7?!!7\n"
+                " :7?!^..^7?!^.     .7J!:           ..::..   .^7?7:...^7J?7.\n"
+                "   .^!77!~~!7?7!^.   :7JJ7!~^^^^^~~~^:..:~!??7~^~!777!~:.\n"
+                "       ^~~~!!7?JYYJ7!^::^!7????7!~~^~!?JYYJ?77!!~^.  :.\n"
+                "       ^77!~^::.:^^~!!!7?JYYYYYYYJ?7!~~^::.YYJ?7!.^!7?7^..\n"
+                "        :::^!?JJ?!~^^~~!!7??7!~~!77!!!!777?????7?JYYJ?777\n"
+                "            !!!!!777!!7?JJ??7!!~~~~~~!!77????7!~^:....\n"
+                "\n"
+                "Cuculus is .SIG (Brainlab) to .EDF converter based of EDFlib by Teuniz and sigtoedf by Frederik-D-Weber.\n"
+                "Cuculus  Copyright (C) 2022  Adam Kalina\n"
+                "This program comes with ABSOLUTELY NO WARRANTY\n"
+                "This is free software, and you are welcome to redistribute it\n");
     parser.addHelpOption();
     parser.addVersionOption();
     QCommandLineOption anonymizeOption("a", QCoreApplication::translate("main", "Anonymize output"));
@@ -107,22 +107,15 @@ int main(int argc, char *argv[])
         }
 
         if(infoSig.completeSuffix().toLower() == "sig" && infoSig.exists()){ // check if input is .sig or .SIG file
-            SignalFile signal = read_signal_file(infoSig);
-            if(signal.check){ // check if the file is oky etc
-                write_edf EdfWriter;
-                if(EdfWriter.write_edf_file(&signal,infoEdf, anonymize, shorten, exportSystemEvents)){
-                    printf("error: EdfWriter.write_edf_file\n");
-                    std::cout << "error: EdfWriter.write_edf_file\n" << std::endl;
-                    return 1;
-                };
-                //write_edf_file(&signal,infoEdf, anonymize, shorten,exportSystemEvents);
-                std::cout << "Finished successfully!" << std::endl;
-                return 0;
+            // call the wrapper class here
+            wrapper Wrapper;
+            if (Wrapper.readAndSaveFileChunks(infoSig, infoEdf, anonymize, shorten, exportSystemEvents)){
+                std::cout << "error processing the file" << std::endl;
+                return 1;
             }
             else{
-                //qDebug() << "Error reading .SIG file";
-                std::cout << "Error reading .SIG file" << std::endl;
-                return 1;
+                std::cout << "Finished successfully!" << std::endl;
+                return 0;
             }
         }
         else{

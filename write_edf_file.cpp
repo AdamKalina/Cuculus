@@ -24,25 +24,7 @@
 #include "edflib.h"
 #include "write_edf_file.h"
 
-int write_edf::write_edf_file(SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents) //is that inline a hack - TO DO?
-{
-
-    // ======== SETTING UP ANNOTATIONS DICTIONARIES ========
-
-    // I am putting here only events not related to PSG. And even from those I use only few
-
-    saveSkipEvent_map[0] = "Store event";
-    systemEvent_map[77] = "Montage change";
-    recorderEvent_map[86] = "Start video recording";
-    recorderEvent_map[118] = "Stop video recording";
-
-    event_map[1] = saveSkipEvent_map; // ET_SAVESKIPEVENT = whole recording?
-    event_map[2] = systemEvent_map;//"ET_SYSTEMEVENT";
-    //event_map[3] = "ET_USEREVENT";
-    //event_map[4] = "ET_DIGINPEVENT";
-    event_map[5] = recorderEvent_map;//"ET_RECORDEREVENT";
-
-    //qDebug() << QString::fromLocal8Bit(signal->measurement.name);
+int write_edf::write_edf_file(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents){
 
     // ======== OPEN THE FILE FOR READING ========
 
@@ -89,7 +71,35 @@ int write_edf::write_edf_file(SignalFile *signal, QFileInfo file2write, bool ano
     return(0);
 }
 
-int write_edf::set_header_info(SignalFile *signal, bool anonymize, QFileInfo file2write){
+int write_edf::write_edf_header(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize){
+    //qDebug() << QString::fromLocal8Bit(signal->measurement.name);
+
+    // ======== OPEN THE FILE FOR READING ========
+
+    hdl = edfopen_file_writeonly(file2write.absoluteFilePath().toLocal8Bit(), EDFLIB_FILETYPE_EDFPLUS, signal->recorder_info.numberOfChannelsUsed);
+
+    if(hdl<0){
+        printf("error: edfopen_file_writeonly()\n");
+        return(1);
+    }
+
+    // ======== SETTING HEADER INFO ========
+
+    if(set_header_info(signal, anonymize, file2write)){
+        printf("error: set_header_info()\n");
+        return(1);
+    }
+
+    // ======== SETTING CHANNEL PROPERTIES ========
+
+    if(set_channel_properties(signal)){
+        printf("error: set_channel_properties\n");
+        return(1);
+    }
+    return(0);
+}
+
+int write_edf::set_header_info(read_signal_file::SignalFile *signal, bool anonymize, QFileInfo file2write){
     if(!anonymize){
         if(edf_set_patientname(hdl, signal->measurement.name)){
             printf("error: edf_set_patientname()\n");
@@ -162,7 +172,7 @@ int write_edf::set_header_info(SignalFile *signal, bool anonymize, QFileInfo fil
    * Note: for anonymization purposes, the consensus is to use 1985-01-01 00:00:00 for the startdate and starttime.
    */
 
-        if(edf_set_patient_additional(hdl, signal->measurement.doctor)){ // this might not make sense, but in Motol we use this field for record labeling
+        if(edf_set_patient_additional(hdl, signal->measurement.doctor)){ // this might not make sense to you, but in Motol we use this field for record labeling
             printf("error: edf_set_patient_additional\n");
 
             return(1);
@@ -205,10 +215,10 @@ int write_edf::set_header_info(SignalFile *signal, bool anonymize, QFileInfo fil
     return(0);
 }
 
-int write_edf::set_channel_properties(SignalFile *signal){
+int write_edf::set_channel_properties(read_signal_file::SignalFile *signal){
     for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){
 
-        Channel *recinf = &signal->recorder_info.channels[ch_index];
+        read_signal_file::Channel *recinf = &signal->recorder_info.channels[ch_index];
 
         //QString chLabel = QString::fromStdString(recinf->channel_desc);
 
@@ -282,9 +292,9 @@ int write_edf::set_channel_properties(SignalFile *signal){
     return(0);
 }
 
-int write_edf::set_data(SignalFile *signal){
+int write_edf::set_data(read_signal_file::SignalFile *signal){
 
-    // calculate number of blocks, one block length = samplefrequency
+    // calculate number of blocks, one block length = 1 second worth of samples = samplefrequency
     //qDebug() << "length of signal" << signal->signal_data[1].size();
 
     //long long nBlocks = (signal->signal_data[1].size() - std::count(signal->signal_data[1].begin(), signal->signal_data[1].end(), 0))/SMP_FREQ;//number of non-zero samples/sampling frequency
@@ -293,19 +303,15 @@ int write_edf::set_data(SignalFile *signal){
     int SMP_FREQ = int(signal->recorder_info.channels[0].sampling_rate); // I hope that sampling rate is same in all signals...
 
     int nBlocks = signal->signal_data[0].size()/SMP_FREQ;
-    //double buf[SMP_FREQ];
 
-    //std::vector<double> buf;
-    //buf.reserve(SMP_FREQ);
-
-    std::vector<double> buf (SMP_FREQ, 0);
+    std::vector<double> buf (SMP_FREQ, 0); // buf is a buffer that contains one record (= one second of samples) that is entered into edfwrite_physical_samples, initiate it full of zeroes
 
     for(int block_index = 0; block_index < nBlocks; block_index++){ // iterate over blocks
         double iBeg = block_index*SMP_FREQ;
 
         for(int ch_index = 0; ch_index < signal->recorder_info.numberOfChannelsUsed; ch_index++){ // iterate over channels
 
-            Channel *recinf = &signal->recorder_info.channels[ch_index];
+            read_signal_file::Channel *recinf = &signal->recorder_info.channels[ch_index];
 
             //qDebug() << recinf->sampling_rate;
 
@@ -326,7 +332,29 @@ int write_edf::set_data(SignalFile *signal){
     return(0);
 }
 
-int write_edf::set_annotations(SignalFile *signal, bool shorten, bool exportSystemEvents){
+int write_edf::set_data_chunk(std::vector<std::vector<double>> esignals,int SMP_FREQ, int numberOfChannelsUsed){
+    int nBlocks = esignals[0].size()/SMP_FREQ;
+    std::vector<double> buf (SMP_FREQ, 0); // or should I use reserve?
+
+    for(int block_index = 0; block_index < nBlocks; block_index++){ // iterate over blocks
+        double iBeg = block_index*SMP_FREQ;
+        for(int ch_index = 0; ch_index < numberOfChannelsUsed; ch_index++){ // iterate over channels
+            for(int buf_index = 0; buf_index < SMP_FREQ; buf_index++){
+                buf[buf_index] = esignals[ch_index][iBeg+buf_index]* 100; //* chFactor - why?
+            }
+
+            if(edfwrite_physical_samples(hdl, buf.data())) // Writes n physical samples from *buf belonging to one signal where n is the samplefrequency of that signal
+            {
+                printf("error: edfwrite_physical_samples() block %d, channel %d\n",block_index,ch_index);
+
+                return(1);
+            }
+        }
+    }
+    return(0);
+}
+
+int write_edf::set_annotations(read_signal_file::SignalFile *signal, bool shorten, bool exportSystemEvents){
     //int edfwrite_annotation_utf8(int handle, long long onset, long long duration, const char *description);
     /* writes an annotation/event to the file
      * onset is relative to the start of the file
@@ -337,6 +365,21 @@ int write_edf::set_annotations(SignalFile *signal, bool shorten, bool exportSyst
      * This function is optional and can be called only after opening a file in writemode
      * and before closing the file
      */
+
+    // ======== SETTING UP ANNOTATIONS DICTIONARIES ========
+
+    // I am putting here only events not related to PSG. And even from those I use only few
+
+    saveSkipEvent_map[0] = "Store event";
+    systemEvent_map[77] = "Montage change";
+    recorderEvent_map[86] = "Start video recording";
+    recorderEvent_map[118] = "Stop video recording";
+
+    event_map[1] = saveSkipEvent_map; // ET_SAVESKIPEVENT = whole recording?
+    event_map[2] = systemEvent_map;//"ET_SYSTEMEVENT";
+    //event_map[3] = "ET_USEREVENT";
+    //event_map[4] = "ET_DIGINPEVENT";
+    event_map[5] = recorderEvent_map;//"ET_RECORDEREVENT";
 
     //qDebug() << "events size" << signal->events.size();
     QString label;
@@ -359,21 +402,7 @@ int write_edf::set_annotations(SignalFile *signal, bool shorten, bool exportSyst
 
         }
         else{
-            if(exportSystemEvents)
-            {
-
-                //                                                qDebug() << "event no: " << j;
-                //                                                qDebug() << "info: "<<signal->events.at(j).info; // always one
-                //                                                qDebug() << "channels: " << signal->events.at(j).channels;
-                //                                                qDebug() << "page: "<<signal->events.at(j).page << ", page_time: "<<signal->events.at(j).page_time;
-                //                                                qDebug() << "time: "<<signal->events.at(j).time;
-                //                                                qDebug() << "duration: " << signal->events.at(j).duration << ", duration in ms: " <<signal->events.at(j).duration_in_ms;
-                //                                                qDebug() << "end time: " <<signal->events.at(j).end_time;
-                //                                                qDebug() << "ev type: " << signal->events.at(j).ev_type << ", sub type: "<<signal->events.at(j).sub_type;
-
-                //                                                char character = char(signal->events.at(j).sub_type); //unsigned char (ASCII value) to char - used in original convertSIGtoEDF.py
-                //                                                qDebug()<<character;
-                //                                                qDebug() << "----";
+            if(exportSystemEvents){
                 int onset_in_s = (signal->events.at(j).page - 1) * signal->recorder_info.epochLengthInSamples / float(signal->recorder_info.highestRate) + signal->events.at(j).page_time;
                 //label = event_map[signal->events.at(j).ev_type][signal->events.at(j).sub_type]; // but this not allow using default value
                 label = event_map.value((signal->events.at(j).ev_type)).value(signal->events.at(j).sub_type,"unknown event");
@@ -392,4 +421,15 @@ int write_edf::set_annotations(SignalFile *signal, bool shorten, bool exportSyst
         edfwrite_annotation_utf8(hdl, onset_in_s*10000, -1, label.toUtf8());
     }
     return(0);
+}
+
+int write_edf::close_file(){
+    int res = edfclose_file(hdl);
+    if (res == -1){
+        printf("error: edfclose_file()\n");
+        return(1);
+    }
+    else{
+        return(0);
+    }
 }
