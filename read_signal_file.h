@@ -219,8 +219,8 @@ public:
     void read_additional_events(QString tableFile);
     std::vector<Note> read_notes(long offset, long size);
     std::vector<Montage> read_display_montages(long offset, long size);
-    Spages read_signal_pages(bool read_signal_data, long file_size, long offset, int page_size, int channels_used, std::vector<Channel> channels);
-    Spage read_signal_page(long offset, int channels_used, std::vector<Channel> channels);
+    Spages read_signal_pages(bool read_signal_data, long file_size, long offset, int page_size, int channels_used, const std::vector<Channel>& channels);
+    Spage read_signal_page(long offset, int channels_used, const std::vector<Channel>& channels);
 };
 
 

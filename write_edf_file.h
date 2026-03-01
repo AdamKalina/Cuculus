@@ -10,6 +10,7 @@ class read_signal_file;
 class write_edf{
 
     int hdl;
+    std::vector<double> buf;
     std::string chName;
 
     const char* recorderName;
@@ -25,7 +26,7 @@ public:
     int set_header_info(read_signal_file::SignalFile *signal, bool anonymize, QFileInfo file2write);
     int set_channel_properties(read_signal_file::SignalFile *signal);
     int set_data(read_signal_file::SignalFile *signal);
-    int set_data_chunk(std::vector<std::vector<double>> esignals, int SMP_FREQ, int numberOfChannelsUsed);
+    int set_data_chunk(const std::vector<std::vector<double>>& esignals, int SMP_FREQ, int numberOfChannelsUsed);
     int set_annotations(read_signal_file::SignalFile *signal, bool shorten, bool exportSystemEvents);
     int write_edf_header(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize);
     int close_file();

@@ -223,7 +223,7 @@ int write_edf::set_channel_properties(read_signal_file::SignalFile *signal){
         //QString chLabel = QString::fromStdString(recinf->channel_desc);
 
         QString chLabel = QString::fromStdString(signal->recorder_info.displayMontage.leads[ch_index]); //use display montage labels
-        qDebug() << chLabel;
+        //qDebug() << chLabel;
 
         chLabel.replace("/","-");
 
@@ -234,7 +234,7 @@ int write_edf::set_channel_properties(read_signal_file::SignalFile *signal){
             chName = recinf->signal_type + " " + chLabel.toStdString();
         }
 
-        qDebug() << QString::fromStdString(chName);
+        //qDebug() << QString::fromStdString(chName);
 
         if(edf_set_samplefrequency(hdl, ch_index, recinf->sampling_rate))
         {
@@ -332,9 +332,11 @@ int write_edf::set_data(read_signal_file::SignalFile *signal){
     return(0);
 }
 
-int write_edf::set_data_chunk(std::vector<std::vector<double>> esignals,int SMP_FREQ, int numberOfChannelsUsed){
+int write_edf::set_data_chunk(const std::vector<std::vector<double>>& esignals, int SMP_FREQ, int numberOfChannelsUsed){
     int nBlocks = esignals[0].size()/SMP_FREQ;
-    std::vector<double> buf (SMP_FREQ, 0); // or should I use reserve?
+    if (buf.size() != SMP_FREQ) {
+            buf.resize(SMP_FREQ);
+        }
 
     for(int block_index = 0; block_index < nBlocks; block_index++){ // iterate over blocks
         double iBeg = block_index*SMP_FREQ;

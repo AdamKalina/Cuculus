@@ -27,21 +27,20 @@
 
 QDateTime decode_date_time(long date, long time){
     //date = days since BC - but with some constraints to account for year with 31*12 days (and 31 days in month)
-    int y = floor(date / (31 * 12));
-    int m = floor(date / 31);
+    //int y = floor(date / (31 * 12)); // floow is not needed since integer divion always performs a floor operation inherently
+    int y = date / (31 * 12);
+    int m = date / 31;
     int d = date % 31;
     m = m % 12;
 
     //qDebug() << y << " " << m << " " << d;
 
-    if (d == 0)
-    {
+    if (d == 0){
         d = 31;
         m--;
     }
 
-    if (m == 0)
-    {
+    if (m == 0){
         m = 12;
         y--;
     }
@@ -50,10 +49,10 @@ QDateTime decode_date_time(long date, long time){
 
     // time = ms since midnight
 
-    int h = floor(time / (60 * 60 * 1000));
-    int min = floor(time / (60 * 1000));
+    int h = time / (60 * 60 * 1000);
+    int min = time / (60 * 1000);
     min = min % 60;
-    int s = floor(time / 1000);
+    int s = time / 1000;
     s = s % 60;
     int ms = time % 1000;
     //qDebug() << h << " " << min << " " << s << " " << ms;
@@ -75,31 +74,24 @@ QDateTime decode_date_time(long date, long time){
 };
 
 template <typename T>
-std::vector<T> readChannel(T tch, std::fstream &file, int nch)
-{
-    std::vector<T> x;
-    for (int i = 0; i < nch; i++)
-    {
-        file.read(reinterpret_cast<char *>(&tch), sizeof(tch));
-        x.push_back(tch);
-    }
+std::vector<T> readChannel(T tch, std::fstream &file, int nch){
+    std::vector<T> x(nch); // Pre-allocate exactly 'nch' elements
+    // Read the whole block of data in one go directly into the vector's memory
+    file.read(reinterpret_cast<char *>(x.data()), nch * sizeof(T));
     return x;
 }
 
 template <typename ByteArray>
-std::vector<std::string> readChannelChar(ByteArray &a, std::fstream &file, int nch)
-{
+std::vector<std::string> readChannelChar(ByteArray &a, std::fstream &file, int nch){
     std::vector<std::string> x;
-    for (int i = 0; i < nch; i++)
-    {
+    for (int i = 0; i < nch; i++){
         file.read(reinterpret_cast<char *>(&a), sizeof(a));
         x.push_back(a);
     }
     return x;
 }
 
-void whereAmI(std::fstream &file)
-{
+void whereAmI(std::fstream &file){
     int testing = 1;
     if(testing){
         std::cout << "Position in file: " << file.tellg() << std::endl;
@@ -273,7 +265,7 @@ read_signal_file::RecorderMontageInfo read_signal_file::read_recorder_info(long 
 
 std::vector<read_signal_file::Event> read_signal_file::read_events(long offset, long size, long nevents){
     file.seekg(offset);
-    std::cout << "beginning of read_events: "; whereAmI(file);
+    //std::cout << "beginning of read_events: "; whereAmI(file);
     //nevents = 10240;
     std::vector<Event> events;
     short tcount;
@@ -451,7 +443,7 @@ std::vector<read_signal_file::Montage> read_signal_file::read_display_montages(l
     return montages;
 }
 
-read_signal_file::Spages read_signal_file::read_signal_pages(bool read_signal_data, long file_size, long offset, int page_size, int channels_used, std::vector<Channel> channels){
+read_signal_file::Spages read_signal_file::read_signal_pages(bool read_signal_data, long file_size, long offset, int page_size, int channels_used, const std::vector<Channel>& channels){
     //std::cout << "Begining of read_signal_pages: "; whereAmI(file);
 
     short h = 0;
@@ -532,7 +524,7 @@ read_signal_file::Spages read_signal_file::read_signal_pages(bool read_signal_da
     return spages;
 }
 
-read_signal_file::Spage read_signal_file::read_signal_page(long offset, int channels_used, std::vector<Channel> channels){
+read_signal_file::Spage read_signal_file::read_signal_page(long offset, int channels_used, const std::vector<Channel>& channels){
     short h = 0;
     std::vector<std::vector<double>> esignals(channels_used, std::vector<double>()); //originally "signals"
 
@@ -574,6 +566,7 @@ read_signal_file::SignalFile read_signal_file::read_signal_file_all(QFileInfo fi
 
     // get file size
     const long long file_size = fileInfo.size();
+    const long BRAINLAB_PROGRAM_ID = 1096045395;
 
     // Signal struct
     SignalFile signal;
@@ -594,7 +587,7 @@ read_signal_file::SignalFile read_signal_file::read_signal_file_all(QFileInfo fi
     signal.header = read_signal_header();
 
     // check if it is BrainLab *.SIG file
-    if (signal.header.program_id != 1096045395){
+    if (signal.header.program_id != BRAINLAB_PROGRAM_ID){
         qDebug() << fileInfo.filePath() << " is not valid BrainLab file, skipping";
         return signal;
     }
