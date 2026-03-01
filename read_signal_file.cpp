@@ -74,7 +74,7 @@ QDateTime decode_date_time(long date, long time){
 };
 
 template <typename T>
-std::vector<T> readChannel(T tch, std::fstream &file, int nch){
+std::vector<T> readChannel(std::fstream &file, int nch){
     std::vector<T> x(nch); // Pre-allocate exactly 'nch' elements
     // Read the whole block of data in one go directly into the vector's memory
     file.read(reinterpret_cast<char *>(x.data()), nch * sizeof(T));
@@ -114,7 +114,7 @@ read_signal_file::SignalHeader read_signal_file::read_signal_header(){
 read_signal_file::DataTable read_signal_file::read_data_table(){
     DataTable data_table;
     long y = 0;
-    std::vector<long> dt = readChannel(y, file, 17);
+    std::vector<long> dt = readChannel<long>(file, 17);
     data_table.measurement_info = Block{dt[0], dt[1], 0};
 data_table.recorder_montage_info = Block{dt[2], dt[3],0};
 data_table.events_info = Block{dt[4], dt[5],0};
@@ -176,9 +176,9 @@ read_signal_file::RecorderMontageInfo read_signal_file::read_recorder_info(long 
     file.read(reinterpret_cast<char *>(&recorder_info.nHighFilters), sizeof(recorder_info.nHighFilters));
 
     float z = 0;
-    recorder_info.sensitivity = readChannel(z, file, 20);
-    recorder_info.lowFilter = readChannel(z, file, 20);
-    recorder_info.highFilter = readChannel(z, file, 20);
+    recorder_info.sensitivity = readChannel<float>(file, 20);
+    recorder_info.lowFilter = readChannel<float>(file, 20);
+    recorder_info.highFilter = readChannel<float>(file, 20);
 
     // <33s2bhH
     unsigned char b;
@@ -198,20 +198,20 @@ read_signal_file::RecorderMontageInfo read_signal_file::read_recorder_info(long 
     char st[9];
     char stth[13];
 
-    std::vector<unsigned short> sampling_rate = readChannel(H, file, nch);
+    std::vector<unsigned short> sampling_rate = readChannel<unsigned short>(file, nch);
     std::vector<std::string> signal_type = readChannelChar(st, file, nch);
     std::vector<std::string> signal_sub_type = readChannelChar(st, file, nch);
     std::vector<std::string> channel_desc = readChannelChar(stth, file, nch);
-    std::vector<unsigned short> sensitivity_index = readChannel(H, file, nch);
-    std::vector<unsigned short> low_filter_index = readChannel(H, file, nch);
-    std::vector<unsigned short> high_filter_index = readChannel(H, file, nch);
-    std::vector<unsigned short> delay = readChannel(H, file, nch);
+    std::vector<unsigned short> sensitivity_index = readChannel<unsigned short>(file, nch);
+    std::vector<unsigned short> low_filter_index = readChannel<unsigned short>(file, nch);
+    std::vector<unsigned short> high_filter_index = readChannel<unsigned short>(file, nch);
+    std::vector<unsigned short> delay = readChannel<unsigned short>(file, nch);
     std::vector<std::string> unit = readChannelChar(uch, file, nch);
-    std::vector<short> artefact_level = readChannel(h, file, nch);
-    std::vector<short> cal_type = readChannel(h, file, nch);
-    std::vector<float> cal_factor = readChannel(z, file, nch);
-    std::vector<float> cal_offset = readChannel(z, file, nch);
-    std::vector<unsigned short> save_buffer_size = readChannel(H, file, nch);
+    std::vector<short> artefact_level = readChannel<short>(file, nch);
+    std::vector<short> cal_type = readChannel<short>(file, nch);
+    std::vector<float> cal_factor = readChannel<float>(file, nch);
+    std::vector<float> cal_offset = readChannel<float>(file, nch);
+    std::vector<unsigned short> save_buffer_size = readChannel<unsigned short>(file, nch);
 
 
     for (int i = 0; i < nch; i++)
@@ -313,11 +313,10 @@ std::vector<read_signal_file::EventDesc> read_signal_file::read_event_descs(){
     int ssize = 32;
     std::vector<std::string> desc = readChannelChar(dss, file, ssize);
     std::vector<std::string> labels = readChannelChar(lss, file, ssize);
-    std::vector<short> values = readChannel(h, file, ssize);
-    std::vector<short> dtypes = readChannel(h, file, ssize);
+    std::vector<short> values = readChannel<short>(file, ssize);
+    std::vector<short> dtypes = readChannel<short>(file, ssize);
 
-    for (int i = 0; i < tcount; i++)
-    {
+    for (int i = 0; i < tcount; i++){
         EventDesc eventdesc;
         eventdesc.desc = desc[i];
         eventdesc.label = labels[i];
@@ -492,7 +491,7 @@ read_signal_file::Spages read_signal_file::read_signal_pages(bool read_signal_da
             if (read_signal_data){
                 for (int i = 0; i < channels_used; i++){
                     //std::cout << "Channel buffer size in channel no "<< i+1 << " is " << channels[i].save_buffer_size << std::endl;
-                    std::vector<short> b = readChannel(h, file, channels[i].save_buffer_size);
+                    std::vector<short> b = readChannel<short>(file, channels[i].save_buffer_size);
                     int start_index = curr_page * channels[i].save_buffer_size;
                     esignals[i].insert(esignals[i].begin() + start_index, b.begin(), b.end());
                 }
@@ -525,7 +524,6 @@ read_signal_file::Spages read_signal_file::read_signal_pages(bool read_signal_da
 }
 
 read_signal_file::Spage read_signal_file::read_signal_page(long offset, int channels_used, const std::vector<Channel>& channels){
-    short h = 0;
     std::vector<std::vector<double>> esignals(channels_used, std::vector<double>()); //originally "signals"
 
     for(int ch = 0; ch < channels_used; ch++){
@@ -543,7 +541,7 @@ read_signal_file::Spage read_signal_file::read_signal_page(long offset, int chan
 
 
     for (int i = 0; i < channels_used; i++){
-        std::vector<short> b = readChannel(h, file, channels[i].save_buffer_size);
+        std::vector<short> b = readChannel<short>(file, channels[i].save_buffer_size);
         esignals[i].insert(esignals[i].begin(), b.begin(), b.end());
     }
 
