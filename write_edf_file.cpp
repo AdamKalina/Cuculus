@@ -371,6 +371,7 @@ int write_edf::set_annotations(read_signal_file::SignalFile *signal, bool shorte
     // ======== SETTING UP ANNOTATIONS DICTIONARIES ========
 
     // I am putting here only events not related to PSG. And even from those I use only few
+    // max len of annotation is 512 characters
 
     saveSkipEvent_map[0] = "Store event";
     systemEvent_map[77] = "Montage change";

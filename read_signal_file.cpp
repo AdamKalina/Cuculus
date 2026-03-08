@@ -126,7 +126,7 @@ data_table.signal_info = Block{dt[14], dt[15], dt[16]};
 return data_table;
 }
 
-read_signal_file::Measurement read_signal_file::read_measurement(long offset){
+read_signal_file::Measurement read_signal_file::readMeasurement(long offset){
     Measurement measurement;
     file.seekg(offset);
     file.read(measurement.id, sizeof(measurement.id));
@@ -175,7 +175,6 @@ read_signal_file::RecorderMontageInfo read_signal_file::read_recorder_info(long 
     file.read(reinterpret_cast<char *>(&recorder_info.nLowFilters), sizeof(recorder_info.nLowFilters));
     file.read(reinterpret_cast<char *>(&recorder_info.nHighFilters), sizeof(recorder_info.nHighFilters));
 
-    float z = 0;
     recorder_info.sensitivity = readChannel<float>(file, 20);
     recorder_info.lowFilter = readChannel<float>(file, 20);
     recorder_info.highFilter = readChannel<float>(file, 20);
@@ -192,8 +191,6 @@ read_signal_file::RecorderMontageInfo read_signal_file::read_recorder_info(long 
 
     // channels
     int nch = 32;
-    short h = 0;
-    unsigned short H = 0;
     char uch[5];
     char st[9];
     char stth[13];
@@ -277,8 +274,7 @@ std::vector<read_signal_file::Event> read_signal_file::read_events(long offset, 
 
     //qDebug() << "read_events tcount: " << tcount;
 
-    for (int i = 0; i < nevents; i++)
-    {
+    for (int i = 0; i < nevents; i++){
         if (i < tcount)
         {
             Event event;
@@ -513,8 +509,8 @@ read_signal_file::Spages read_signal_file::read_signal_pages(bool read_signal_da
             // and I use -1* because otherwise the resulting file would have positive polarity upwards (which is actually oky for edfbrowser, but not for other browsers)
             double cal_offset = channels[i].cal_offset;
             // transform(v.begin(), v.end(), v.begin(), [k](int &c){ return c*k; });
-            std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_factor](double &c) { return c * cal_factor; });
-            std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [&cal_offset](double &c) { return c + cal_offset; });
+            std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [cal_factor](double c) { return c * cal_factor; });
+            std::transform(esignals[i].begin(), esignals[i].end(), esignals[i].begin(), [cal_offset](double c) { return c + cal_offset; });
         }
     }
     Spages spages;
@@ -530,9 +526,9 @@ read_signal_file::Spage read_signal_file::read_signal_page(long offset, int chan
         esignals[ch].reserve(channels[ch].save_buffer_size * 1); // allocate memory for one page
     }
 
-    SignalPage page;
     file.clear();
     file.seekg(offset);
+    SignalPage page;
     file.read(reinterpret_cast<char *>(&page.filling), sizeof(page.filling));
     file.read(reinterpret_cast<char *>(&page.time), sizeof(page.time));
 
@@ -558,6 +554,39 @@ read_signal_file::Spage read_signal_file::read_signal_page(long offset, int chan
     spage.page = page;
     spage.esignals = esignals;
     return spage;
+}
+
+void read_signal_file::read_signal_page_into(long offset, int channels_used, const std::vector<Channel>& channels, std::vector<std::vector<double>>& esignals_buffer){
+
+    file.clear(); // resets the pointer
+    file.seekg(offset); // set it to given position
+
+    SignalPage page;
+    file.read(reinterpret_cast<char *>(&page.filling), sizeof(page.filling));
+    file.read(reinterpret_cast<char *>(&page.time), sizeof(page.time));
+    // improved by Gemini
+    // A reusable buffer for the raw short data (avoids re-allocating inside the loop)
+    static std::vector<short> raw_short_buffer;
+
+    for (int i = 0; i < channels_used; i++) {
+        int buf_size = channels[i].save_buffer_size;
+
+        // 1. Resize buffers if needed (only allocates on the very first page)
+        if (raw_short_buffer.size() < buf_size) raw_short_buffer.resize(buf_size);
+        if (esignals_buffer[i].size() < buf_size) esignals_buffer[i].resize(buf_size);
+
+        // 2. Read the block of shorts directly from the file
+        file.read(reinterpret_cast<char *>(raw_short_buffer.data()), buf_size * sizeof(short));
+
+        // 3. Get calibration variables
+        double cal_factor = -abs(channels[i].cal_factor);
+        double cal_offset = channels[i].cal_offset;
+
+        // 4. THE MAGIC: Convert to double and calibrate in one single, hyper-fast loop
+        for (int j = 0; j < buf_size; j++) {
+            esignals_buffer[i][j] = (raw_short_buffer[j] * cal_factor) + cal_offset;
+        }
+    }
 }
 
 read_signal_file::SignalFile read_signal_file::read_signal_file_all(QFileInfo fileInfo, bool read_signal_data){
@@ -595,7 +624,7 @@ read_signal_file::SignalFile read_signal_file::read_signal_file_all(QFileInfo fi
 
     //whereAmI(file); // should be 80
     // Measurement
-    signal.measurement = read_measurement(signal.data_table.measurement_info.offset);
+    signal.measurement = readMeasurement(signal.data_table.measurement_info.offset);
 
     //Recorder info
     signal.recorder_info = read_recorder_info(signal.data_table.recorder_montage_info.offset);

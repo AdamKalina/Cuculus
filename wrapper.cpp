@@ -38,13 +38,15 @@ int wrapper::readAndSaveFileChunks(QFileInfo infoSig, QFileInfo infoEdf, bool an
     int SMP_FREQ = int(signal.recorder_info.channels[0].sampling_rate);
     long current_offset = signal.data_table.signal_info.offset;
     long page_size = signal.data_table.signal_info.size;
-
+    std::vector<std::vector<double>> esignals_buffer(numberOfChannelsUsed); // Allocate the 2D vector ONCE outside the loop
     //for page in pages
     for(int i = 0;i < signal.signal_pages.size();i++){
-        read_signal_file::Spage spage = signalReader.read_signal_page(current_offset, numberOfChannelsUsed, signal.recorder_info.channels); // read one page
+        //read_signal_file::Spage spage = signalReader.read_signal_page(current_offset, numberOfChannelsUsed, signal.recorder_info.channels); // read one page
+        signalReader.read_signal_page_into(current_offset, numberOfChannelsUsed, signal.recorder_info.channels, esignals_buffer);
         current_offset += page_size; // move the pointer (or maybe I do not need it after setting the first one...
         // write data records
-        EdfWriter.set_data_chunk(spage.esignals,SMP_FREQ,numberOfChannelsUsed);
+        //EdfWriter.set_data_chunk(spage.esignals,SMP_FREQ,numberOfChannelsUsed);
+        EdfWriter.set_data_chunk(esignals_buffer, SMP_FREQ, numberOfChannelsUsed);
     }
     // write the annotations
     EdfWriter.set_annotations(&signal, shorten, exportSystemEvents);

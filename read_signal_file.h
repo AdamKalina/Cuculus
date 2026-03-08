@@ -212,7 +212,7 @@ public:
     SignalFile read_signal_file_all(QFileInfo fileInfo, bool read_signal_data);
     SignalHeader read_signal_header(); // part of the header struct
     DataTable read_data_table();
-    Measurement read_measurement(long offset);
+    Measurement readMeasurement(long offset);
     RecorderMontageInfo read_recorder_info(long offset);
     std::vector<Event> read_events(long offset, long size, long nevents);
     std::vector<EventDesc> read_event_descs();
@@ -221,6 +221,7 @@ public:
     std::vector<Montage> read_display_montages(long offset, long size);
     Spages read_signal_pages(bool read_signal_data, long file_size, long offset, int page_size, int channels_used, const std::vector<Channel>& channels);
     Spage read_signal_page(long offset, int channels_used, const std::vector<Channel>& channels);
+    void read_signal_page_into(long offset, int channels_used, const std::vector<Channel> &channels, std::vector<std::vector<double> > &esignals_buffer);
 };
 
 
