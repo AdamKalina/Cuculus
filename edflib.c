@@ -68,10 +68,10 @@
 #endif
 
 /* max size of annotationtext */
-#define EDFLIB_WRITE_MAX_ANNOTATION_LEN  (256) // originally 40, but 256 characters is maximum length of notes of BrainLab files
+#define EDFLIB_WRITE_MAX_ANNOTATION_LEN  (512)
 
 /* bytes in datarecord for EDF annotations, must be an integer multiple of three and two */
-#define EDFLIB_ANNOTATION_BYTES  (114)
+#define EDFLIB_ANNOTATION_BYTES  (594)
 
 /* for writing only */
 #define EDFLIB_MAX_ANNOTATION_CHANNELS  (64)

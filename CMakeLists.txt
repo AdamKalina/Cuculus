@@ -26,6 +26,7 @@ endif()
 add_executable(Cuculus
   main.cpp
   read_signal_file.cpp
+  harmoniereader.cpp
   edflib.c
   write_edf_file.cpp
   wrapper.cpp

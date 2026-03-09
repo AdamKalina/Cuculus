@@ -27,6 +27,7 @@
 #include <QCommandLineParser>
 #include <QElapsedTimer>
 #include "wrapper.h"
+#include "harmoniereader.h"
 
 QString EdfPath;
 
@@ -34,8 +35,8 @@ int main(int argc, char *argv[])
 {
     setlocale(LC_ALL, "czech");
     QCoreApplication a(argc, argv);
-    QCoreApplication::setApplicationName("Cuculus - .SIG to .EDF converter");
-    QCoreApplication::setApplicationVersion("0.3");
+    QCoreApplication::setApplicationName("Cuculus - .SIG converter");
+    QCoreApplication::setApplicationVersion("0.4");
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
@@ -57,15 +58,15 @@ int main(int argc, char *argv[])
                 "        :::^!?JJ?!~^^~~!!7??7!~~!77!!!!777?????7?JYYJ?777\n"
                 "            !!!!!777!!7?JJ??7!!~~~~~~!!77????7!~^:....\n"
                 "\n"
-                "Cuculus is .SIG (Brainlab) to .EDF converter based of EDFlib by Teuniz and sigtoedf by Frederik-D-Weber.\n"
-                "Cuculus  Copyright (C) 2022  Adam Kalina\n"
+                "Cuculus is .SIG converter based of EDFlib by Teuniz and supporting BrainLab and Harmonie formats.\n"
+                "Cuculus  Copyright (C) 2022-2026  Adam Kalina\n"
                 "This program comes with ABSOLUTELY NO WARRANTY\n"
                 "This is free software, and you are welcome to redistribute it\n");
     parser.addHelpOption();
     parser.addVersionOption();
     QCommandLineOption anonymizeOption("a", QCoreApplication::translate("main", "Anonymize output"));
     parser.addOption(anonymizeOption);
-    QCommandLineOption shortenOption("s", QCoreApplication::translate("main", "Shorten events labels"));
+    QCommandLineOption shortenOption("s", QCoreApplication::translate("main", "Shorten events labels (BrainLab only)"));
     parser.addOption(shortenOption);
     QCommandLineOption systemEventsOption("y", QCoreApplication::translate("main", "Export recorder system events in annotations"));
     parser.addOption(systemEventsOption);
@@ -76,15 +77,10 @@ int main(int argc, char *argv[])
     parser.process(a);
 
     const QStringList args = parser.positionalArguments();
-    // source is args.at(0), destination is args.at(1)
 
-    bool anonymize = parser.isSet(anonymizeOption); // disable adding patients info in the header
-    bool shorten = parser.isSet(shortenOption); // use shortened labels for events, e.g. ZO/OO
+    bool anonymize = parser.isSet(anonymizeOption); 
+    bool shorten = parser.isSet(shortenOption); 
     bool exportSystemEvents = parser.isSet(systemEventsOption);
-
-    //    qDebug() << "anonymize is " << anonymize;
-    //    qDebug() << "shorten is " << shorten;
-    //    qDebug() << args;
 
     if(args.size()==0){
         parser.showHelp();
@@ -95,37 +91,44 @@ int main(int argc, char *argv[])
             EdfPath = args.at(1);
         }else{ // only one (or more than two) arguments provided
             EdfPath = infoSig.path() + "/" + infoSig.completeBaseName() + ".EDF";
-            //qDebug() << "Exporting to the same folder";
-            std::cout << "Exporting to the same folder" << std::endl;
+            std::string coutPath = EdfPath.toLocal8Bit();
+            std::cout << "Exporting to " << coutPath << std::endl;
         }
         QFileInfo infoEdf(EdfPath);
 
-        if(infoEdf.completeSuffix() != "EDF"){ //must be EDF file
-            //qDebug() << "The path to output does not end with .EDF - exiting";
-            std::cout << "The path to output does not end with .EDF - exiting" << std::endl;
-            return 1;
-        }
+        // --- BRAINLAB CHECK ---
+        read_signal_file BrainlabReader;
+        // read_signal_file_all checks program_id == 1096045395 internally
+        read_signal_file::SignalFile signal = BrainlabReader.read_signal_file_all(infoSig, false);
 
-        if(infoSig.completeSuffix().toLower() == "sig" && infoSig.exists()){ // check if input is .sig or .SIG file
-            // call the wrapper class here
+        if (signal.check) {
+            std::cout << "Detected BrainLab format. Exporting..." << std::endl;
             wrapper Wrapper;
             if (Wrapper.readAndSaveFileChunks(infoSig, infoEdf, anonymize, shorten, exportSystemEvents)){
-                std::cout << "error processing the file" << std::endl;
+                std::cout << "error processing BrainLab file" << std::endl;
                 return 1;
             }
-            else{
-                std::cout << "Finished successfully!" << std::endl;
+            std::cout << "BrainLab export finished successfully!" << std::endl;
+            return 0;
+        } 
+        
+        // --- HARMONIE CHECK ---
+        std::cout << "Not a BrainLab file. Trying Harmonie format..." << std::endl;
+        HarmonieReader Harmonie;
+        if (Harmonie.readHarmonieFile(infoSig) == 0) {
+            std::cout << "Detected Harmonie format. Exporting..." << std::endl;
+            if (Harmonie.exportToEdf(infoEdf, exportSystemEvents, anonymize) == 0) {
+                std::cout << "Harmonie export finished successfully!" << std::endl;
                 return 0;
+            } else {
+                std::cout << "Error during Harmonie export." << std::endl;
+                return 1;
             }
         }
-        else{
-            //qDebug() << "The input file does not exist or it is not a .SIG file - exiting";
-            std::cout << "The input file does not exist or it is not a .SIG file - exiting" << std::endl;
-            return 1;
-        }
 
-
+        std::cout << "Error: File is neither a valid BrainLab nor Harmonie recording." << std::endl;
+        return 1;
     }
 
-    //return a.exec();
+    return 0;
 }
