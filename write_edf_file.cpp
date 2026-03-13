@@ -24,7 +24,7 @@
 #include "edflib.h"
 #include "write_edf_file.h"
 
-int write_edf::write_edf_file(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents){
+int write_edf::write_edf_file(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents, bool export2ascii){
 
     // ======== OPEN THE FILE FOR READING ========
 
@@ -59,7 +59,7 @@ int write_edf::write_edf_file(read_signal_file::SignalFile *signal, QFileInfo fi
 
     // ======== WRITING ANNOTATIONS ========
 
-    if(set_annotations(signal, shorten, exportSystemEvents)){
+    if(set_annotations(signal, shorten, exportSystemEvents, export2ascii)){
         printf("error: set_annotations\n");
         return(1);
     }
@@ -335,8 +335,8 @@ int write_edf::set_data(read_signal_file::SignalFile *signal){
 int write_edf::set_data_chunk(const std::vector<std::vector<double>>& esignals, int SMP_FREQ, int numberOfChannelsUsed){
     int nBlocks = esignals[0].size()/SMP_FREQ;
     if (buf.size() != SMP_FREQ) {
-            buf.resize(SMP_FREQ);
-        }
+        buf.resize(SMP_FREQ);
+    }
 
     for(int block_index = 0; block_index < nBlocks; block_index++){ // iterate over blocks
         double iBeg = block_index*SMP_FREQ;
@@ -356,7 +356,7 @@ int write_edf::set_data_chunk(const std::vector<std::vector<double>>& esignals, 
     return(0);
 }
 
-int write_edf::set_annotations(read_signal_file::SignalFile *signal, bool shorten, bool exportSystemEvents){
+int write_edf::set_annotations(read_signal_file::SignalFile *signal, bool shorten, bool exportSystemEvents, bool export2ascii){
     //int edfwrite_annotation_utf8(int handle, long long onset, long long duration, const char *description);
     /* writes an annotation/event to the file
      * onset is relative to the start of the file
@@ -400,9 +400,13 @@ int write_edf::set_annotations(read_signal_file::SignalFile *signal, bool shorte
             }else{
                 label = QString::fromLocal8Bit(signal->events_desc.at(ev_subtype).desc.data());
             }
-            edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
 
-
+            if(export2ascii){
+                edfwrite_annotation_ascii(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toLocal8Bit());
+            }
+            else{
+                edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
+            }
         }
         else{
             if(exportSystemEvents){
@@ -413,7 +417,12 @@ int write_edf::set_annotations(read_signal_file::SignalFile *signal, bool shorte
                 if(signal->events.at(j).ev_type == 1){ // do not use "Store event" - it colors the whole recording
                     continue;
                 }
-                edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
+                if(export2ascii){
+                    edfwrite_annotation_ascii(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toLocal8Bit()); // should already be in ASCII
+                }
+                else{
+                    edfwrite_annotation_utf8(hdl, onset_in_s*10000, signal->events.at(j).duration_in_ms*10, label.toUtf8());
+                }
             }
         }
     }

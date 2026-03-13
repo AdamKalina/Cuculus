@@ -22,12 +22,12 @@ class write_edf{
 
 
 public:
-    int write_edf_file(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents);
+    int write_edf_file(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize, bool shorten, bool exportSystemEvents, bool export2ascii);
     int set_header_info(read_signal_file::SignalFile *signal, bool anonymize, QFileInfo file2write);
     int set_channel_properties(read_signal_file::SignalFile *signal);
     int set_data(read_signal_file::SignalFile *signal);
     int set_data_chunk(const std::vector<std::vector<double>>& esignals, int SMP_FREQ, int numberOfChannelsUsed);
-    int set_annotations(read_signal_file::SignalFile *signal, bool shorten, bool exportSystemEvents);
+    int set_annotations(read_signal_file::SignalFile *signal, bool shorten, bool exportSystemEvents, bool export2ascii);
     int write_edf_header(read_signal_file::SignalFile *signal, QFileInfo file2write, bool anonymize);
     int close_file();
 };

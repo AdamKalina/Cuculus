@@ -635,6 +635,17 @@ int edfwrite_annotation_latin1(int handle, long long onset, long long duration, 
  * and before closing the file
  */
 
+int edfwrite_annotation_ascii(int handle, long long onset, long long duration, const char *description); // by AK, converts Czech characters into ASCII
+/* writes an annotation/event to the file
+ * onset is relative to the start of the file
+ * onset and duration are in units of 100 microSeconds!     resolution is 0.0001 second!
+ * for example: 34.071 seconds must be written as 340710
+ * if duration is unknown or not applicable: set a negative number (-1)
+ * description is a null-terminated Latin1-string containing the text that describes the event
+ * This function is optional and can be called only after opening a file in writemode
+ * and before closing the file
+ */
+
 int edf_set_datarecord_duration(int handle, int duration);
 /* Sets the datarecord duration. The default value is 1 second.
  * ATTENTION: the argument "duration" is expressed in units of 10 microSeconds!

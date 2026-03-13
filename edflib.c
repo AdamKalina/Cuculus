@@ -3409,12 +3409,11 @@ static void edflib_latin1_to_ascii(char *str, int len)
     }
 }
 
-static void edflib_latin2_to_ascii(char *str, int len)
+static void edflib_latin2_to_ascii(char *str, int len) // by AK
 {
     /* Actually this is more Windows-1250 then ISO 8859-2 - even wikipedia does not know, why is it different
     I tested this on pangrams in Czech, Slovac, Polish and Croatian. Does not work in Romanian - probably because of this: https://stackoverflow.com/questions/62263309/qt5-c-utf-8-convertion-to-windows-1250-of-romanian-%C8%99-and-%C8%9B-characters
     source of pangrams: https://clagnut.com/blog/2380/*/
-
 
 
     int i, value;
@@ -5720,6 +5719,49 @@ int edfwrite_annotation_latin1(int handle, long long onset, long long duration, 
     strncpy(str, description, EDFLIB_WRITE_MAX_ANNOTATION_LEN);
     str[EDFLIB_WRITE_MAX_ANNOTATION_LEN] = 0;
     edflib_latin12utf8(str, strlen(str));
+    strncpy(list_annot->annotation, str, EDFLIB_WRITE_MAX_ANNOTATION_LEN);
+    list_annot->annotation[EDFLIB_WRITE_MAX_ANNOTATION_LEN] = 0;
+
+    hdrlist[handle]->annots_in_file++;
+
+    return 0;
+}
+
+int edfwrite_annotation_ascii(int handle, long long onset, long long duration, const char *description)
+{
+    struct edf_write_annotationblock *list_annot, *malloc_list;
+
+    char str[EDFLIB_WRITE_MAX_ANNOTATION_LEN + 1];
+
+    if((handle<0)||(handle>=EDFLIB_MAXFILES))  return -1;
+
+    if(hdrlist[handle]==NULL)  return -1;
+
+    if(!hdrlist[handle]->writemode)  return -1;
+
+    if(onset<0LL)  return -1;
+
+    if(hdrlist[handle]->annots_in_file >= hdrlist[handle]->annotlist_sz)
+    {
+        malloc_list = (struct edf_write_annotationblock *)realloc(write_annotationslist[handle],
+                                                                  sizeof(struct edf_write_annotationblock) * (hdrlist[handle]->annotlist_sz + EDFLIB_ANNOT_MEMBLOCKSZ));
+        if(malloc_list==NULL)
+        {
+            return -1;
+        }
+
+        write_annotationslist[handle] = malloc_list;
+
+        hdrlist[handle]->annotlist_sz += EDFLIB_ANNOT_MEMBLOCKSZ;
+    }
+
+    list_annot = write_annotationslist[handle] + hdrlist[handle]->annots_in_file;
+
+    list_annot->onset = onset;
+    list_annot->duration = duration;
+    strncpy(str, description, EDFLIB_WRITE_MAX_ANNOTATION_LEN);
+    str[EDFLIB_WRITE_MAX_ANNOTATION_LEN] = 0;
+    edflib_latin2_to_ascii(str, strlen(str));
     strncpy(list_annot->annotation, str, EDFLIB_WRITE_MAX_ANNOTATION_LEN);
     list_annot->annotation[EDFLIB_WRITE_MAX_ANNOTATION_LEN] = 0;
 

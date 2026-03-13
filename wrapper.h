@@ -8,8 +8,8 @@ class wrapper
 {
 public:
     wrapper();
-    int readAndSaveFile(QFileInfo fileInfo, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents);
-    int readAndSaveFileChunks(QFileInfo fileInfo, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents);
+    int readAndSaveFile(QFileInfo fileInfo, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents, bool export2ascii);
+    int readAndSaveFileChunks(QFileInfo fileInfo, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents, bool export2ascii);
 };
 
 #endif // WRAPPER_H

@@ -4,12 +4,12 @@ wrapper::wrapper()
 {
 }
 
-int wrapper::readAndSaveFile(QFileInfo infoSig, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents){
+int wrapper::readAndSaveFile(QFileInfo infoSig, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents, bool export2ascii){
     read_signal_file signalReader;
     read_signal_file::SignalFile signal = signalReader.read_signal_file_all(infoSig, true);
     if(signal.check){ // check if the file is oky etc
         write_edf EdfWriter;
-        if(EdfWriter.write_edf_file(&signal,infoEdf, anonymize, shorten, exportSystemEvents)){
+        if(EdfWriter.write_edf_file(&signal,infoEdf, anonymize, shorten, exportSystemEvents, export2ascii)){
             return 1;
         }
         else{
@@ -22,7 +22,7 @@ int wrapper::readAndSaveFile(QFileInfo infoSig, QFileInfo infoEdf, bool anonymiz
     }
 }
 
-int wrapper::readAndSaveFileChunks(QFileInfo infoSig, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents){
+int wrapper::readAndSaveFileChunks(QFileInfo infoSig, QFileInfo infoEdf, bool anonymize, bool shorten, bool exportSystemEvents, bool export2ascii){
     read_signal_file signalReader;
     read_signal_file::SignalFile signal = signalReader.read_signal_file_all(infoSig, false); // reads the header and the pages, not the real EEG data
     if(!signal.check){
@@ -49,7 +49,7 @@ int wrapper::readAndSaveFileChunks(QFileInfo infoSig, QFileInfo infoEdf, bool an
         EdfWriter.set_data_chunk(esignals_buffer, SMP_FREQ, numberOfChannelsUsed);
     }
     // write the annotations
-    EdfWriter.set_annotations(&signal, shorten, exportSystemEvents);
+    EdfWriter.set_annotations(&signal, shorten, exportSystemEvents, export2ascii);
     // finish writing the file
     EdfWriter.close_file();
     return 0;
